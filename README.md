@@ -2,6 +2,8 @@
 
 A terminal-based Markdown and code editor with WYSIWYG rendering and LSP support.
 
+![demo](assets/demo.gif)
+
 ## Overview
 
 `mq-edit` is a Rust-based TUI (Text User Interface) editor that provides:
@@ -42,20 +44,20 @@ mq-edit --help
 
 ### Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `Ctrl+S` | Save file (opens save dialog for new files) |
-| `Ctrl+Q` / `Esc` | Quit |
-| `Alt+B` / `F2` | Toggle file browser |
-| `Ctrl+Space` | Code completion (LSP) |
-| `Ctrl+D` | Go to definition (LSP) |
-| `Ctrl+B` | Navigate back |
-| `Ctrl+F` | Navigate forward |
-| `Ctrl+G` | Go to line |
-| `F3` | Search |
-| `F4` | Find and replace |
-| `Up/Down` | Move cursor / Select completion |
-| `Enter` | Apply completion |
+| Key              | Action                                      |
+| ---------------- | ------------------------------------------- |
+| `Ctrl+S`         | Save file (opens save dialog for new files) |
+| `Ctrl+Q` / `Esc` | Quit                                        |
+| `Alt+B` / `F2`   | Toggle file browser                         |
+| `Ctrl+Space`     | Code completion (LSP)                       |
+| `Ctrl+D`         | Go to definition (LSP)                      |
+| `Ctrl+B`         | Navigate back                               |
+| `Ctrl+F`         | Navigate forward                            |
+| `Ctrl+G`         | Go to line                                  |
+| `F3`             | Search                                      |
+| `F4`             | Find and replace                            |
+| `Up/Down`        | Move cursor / Select completion             |
+| `Enter`          | Apply completion                            |
 
 ## Configuration
 
@@ -190,4 +192,3 @@ All themes are provided by the [syntect](https://github.com/trishume/syntect) li
 ## License
 
 Same license as the mq project (MIT).
-

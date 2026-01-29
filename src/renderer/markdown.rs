@@ -98,6 +98,8 @@ impl MarkdownRenderer {
                 let alignments = vec![TableAlignment::Left; cells.len()];
                 self.render_table_row(cells, &widths, &alignments)
             }
+            LineType::FrontMatterDelimiter => self.render_front_matter_delimiter(),
+            LineType::FrontMatterContent => self.render_front_matter_content(content),
             LineType::Text => self.render_text_line(content),
         }
     }
@@ -438,6 +440,106 @@ impl MarkdownRenderer {
             }
         }
     }
+
+    /// Render front matter delimiter (--- or +++)
+    fn render_front_matter_delimiter(&self) -> Vec<Span<'_>> {
+        vec![Span::styled(
+            "─".repeat(60),
+            Style::default().fg(Color::Rgb(100, 100, 150)),
+        )]
+    }
+
+    /// Render front matter content (YAML/TOML)
+    fn render_front_matter_content(&self, content: &str) -> Vec<Span<'_>> {
+        // Simple YAML syntax highlighting
+        let trimmed = content.trim_start();
+        
+        // Check if it's a YAML key-value pair
+        if let Some(colon_pos) = trimmed.find(':') {
+            let key = &trimmed[..colon_pos];
+            let value = &trimmed[colon_pos..];
+            
+            vec![
+                Span::styled(
+                    key.to_string(),
+                    Style::default().fg(Color::Rgb(150, 180, 200)).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    value.to_string(),
+                    Style::default().fg(Color::Rgb(200, 200, 220)),
+                ),
+            ]
+        } else if trimmed.starts_with('-') {
+            // YAML list item
+            vec![Span::styled(
+                content.to_string(),
+                Style::default().fg(Color::Rgb(180, 180, 200)),
+            )]
+        } else if trimmed.starts_with('#') {
+            // YAML comment
+            vec![Span::styled(
+                content.to_string(),
+                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+            )]
+        } else {
+            // Default front matter style
+            vec![Span::styled(
+                content.to_string(),
+                Style::default().fg(Color::Rgb(180, 180, 200)),
+            )]
+        }
+    }
+
+    /// Determine line type with context awareness for front matter
+    fn determine_line_type(&self, buffer: &DocumentBuffer, line_idx: usize, content: &str) -> crate::document::LineType {
+        use crate::document::LineAnalyzer;
+        
+        let line_type = LineAnalyzer::analyze_line(content);
+        
+        // Check if we're inside a front matter block
+        if let crate::document::LineType::FrontMatterDelimiter = line_type {
+            return line_type;
+        }
+        
+        // Check if this line is inside a front matter block
+        if self.is_inside_front_matter(buffer, line_idx) {
+            return crate::document::LineType::FrontMatterContent;
+        }
+        
+        line_type
+    }
+
+    /// Check if a line is inside a front matter block
+    fn is_inside_front_matter(&self, buffer: &DocumentBuffer, line_idx: usize) -> bool {
+        // Front matter must start at line 0
+        if line_idx == 0 {
+            return false;
+        }
+        
+        // Check if line 0 is a front matter delimiter
+        if let Some(first_line) = buffer.line(0) {
+            let first_trimmed = first_line.trim();
+            if first_trimmed != "---" && first_trimmed != "+++" {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        
+        // Look backwards from current line to find if we're between delimiters
+        let mut delimiter_count = 0;
+        for i in 0..=line_idx {
+            if let Some(line) = buffer.line(i) {
+                let trimmed = line.trim();
+                if trimmed == "---" || trimmed == "+++" {
+                    delimiter_count += 1;
+                }
+            }
+        }
+        
+        // If we've seen exactly one delimiter, we're inside the front matter
+        delimiter_count == 1
+    }
 }
 
 impl Default for MarkdownRenderer {
@@ -461,8 +563,7 @@ impl Renderer for MarkdownRenderer {
             vec![Span::styled(content.to_string(), Style::default())]
         } else {
             // Other lines: show rich formatted based on line type
-            use crate::document::LineAnalyzer;
-            let line_type = LineAnalyzer::analyze_line(content);
+            let line_type = self.determine_line_type(buffer, line_idx, content);
             self.render_rich(content, &line_type)
         }
     }

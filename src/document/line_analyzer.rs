@@ -24,6 +24,8 @@ pub enum LineType {
     TableHeader(Vec<String>),            // Table header row with cell contents
     TableSeparator(Vec<TableAlignment>), // Table separator row with alignments
     TableRow(Vec<String>),               // Table data row with cell contents
+    FrontMatterDelimiter,                // --- or +++ at start/end of front matter
+    FrontMatterContent,                  // YAML/TOML content inside front matter
     Text,
 }
 
@@ -33,6 +35,11 @@ impl LineAnalyzer {
     /// Analyze a line and determine its Markdown type
     pub fn analyze_line(line: &str) -> LineType {
         let trimmed = line.trim_start();
+
+        // Front matter delimiter (--- or +++)
+        if (trimmed == "---" || trimmed == "+++") && line == trimmed {
+            return LineType::FrontMatterDelimiter;
+        }
 
         // Heading
         if let Some(rest) = trimmed.strip_prefix('#') {
@@ -308,6 +315,28 @@ mod tests {
                 TableAlignment::Center,
                 TableAlignment::None,
             ]
+        );
+    }
+
+    #[test]
+    fn test_front_matter_delimiter() {
+        assert_eq!(
+            LineAnalyzer::analyze_line("---"),
+            LineType::FrontMatterDelimiter
+        );
+        assert_eq!(
+            LineAnalyzer::analyze_line("+++"),
+            LineType::FrontMatterDelimiter
+        );
+        // With spaces should not be treated as front matter delimiter
+        assert_eq!(
+            LineAnalyzer::analyze_line("--- "),
+            LineType::HorizontalRule
+        );
+        // Not at start should be horizontal rule
+        assert_eq!(
+            LineAnalyzer::analyze_line(" ---"),
+            LineType::HorizontalRule
         );
     }
 }
