@@ -1,0 +1,267 @@
+# mq-edit Configuration File Example
+#
+# This is an example configuration file for mq-edit.
+# Copy this file to your config directory and customize as needed.
+#
+# Config file location:
+#   Linux:   ~/.config/mq-edit/config.toml
+#   macOS:   ~/Library/Application Support/mq-edit/config.toml
+#   Windows: %APPDATA%\mq-edit\config.toml
+#
+# Or run: mq-edit --init-config
+
+# ============================================================================
+# Editor Configuration
+# ============================================================================
+
+[editor]
+# Show line numbers in the editor
+show_line_numbers = true
+
+# Highlight the current line
+show_current_line_highlight = true
+
+# Syntax highlighting theme
+# Available built-in themes:
+#   - base16-ocean.dark (default)
+#   - base16-ocean.light
+#   - base16-mocha.dark
+#   - base16-eighties.dark
+#   - InspiredGitHub
+#   - Solarized (dark)
+#   - Solarized (light)
+theme = "base16-ocean.dark"
+
+# Use semantic tokens from LSP for syntax highlighting
+# When true, uses semantic tokens from language servers when available
+# When false, uses syntect for static syntax highlighting (default)
+use_semantic_tokens = false
+
+# ============================================================================
+# Keybindings
+# ============================================================================
+#
+# All keybindings are customizable. Each keybinding has:
+#   - code: The key to press (e.g., "q", "s", "f1", "esc", "space")
+#   - modifiers: List of modifiers (e.g., ["ctrl"], ["ctrl", "shift"], ["alt"])
+#
+# Available modifiers: "ctrl", "shift", "alt"
+# Available special keys: "esc", "enter", "backspace", "tab", "space", "f1"-"f12"
+
+[keybindings.quit]
+code = "q"
+modifiers = ["ctrl"]
+# Default: Ctrl+Q
+
+[keybindings.quit_alt]
+code = "esc"
+modifiers = []
+# Default: Esc (alternative quit key)
+
+[keybindings.save]
+code = "s"
+modifiers = ["ctrl"]
+# Default: Ctrl+S (standard across editors)
+
+[keybindings.toggle_file_browser]
+code = "b"
+modifiers = ["alt"]
+# Default: Alt+B
+# Changed from Ctrl+B to avoid VSCode sidebar toggle conflict
+
+[keybindings.toggle_file_browser_alt]
+code = "f2"
+modifiers = []
+# Default: F2 (alternative to Alt+B)
+
+[keybindings.goto_definition]
+code = "g"
+modifiers = ["ctrl"]
+# Default: Ctrl+G (LSP go to definition)
+
+[keybindings.navigate_back]
+code = "b"
+modifiers = ["ctrl"]
+# Default: Ctrl+B (navigate back in history)
+
+[keybindings.navigate_forward]
+code = "f"
+modifiers = ["ctrl"]
+# Default: Ctrl+F (navigate forward in history)
+
+[keybindings.search]
+code = "/"
+modifiers = ["ctrl"]
+# Default: Ctrl+/ (Phase 4 - not yet implemented)
+# Changed from Ctrl+F to avoid conflict with navigate_forward
+
+[keybindings.replace]
+code = "h"
+modifiers = ["ctrl"]
+# Default: Ctrl+H (Phase 4 - not yet implemented)
+
+[keybindings.undo]
+code = "z"
+modifiers = ["ctrl"]
+# Default: Ctrl+Z (Phase 4 - not yet implemented)
+
+[keybindings.redo]
+code = "y"
+modifiers = ["ctrl"]
+# Default: Ctrl+Y (Phase 4 - not yet implemented)
+# Note: macOS users might prefer Ctrl+Shift+Z
+
+[keybindings.close_browser]
+code = "esc"
+modifiers = []
+# Default: Esc (standard for closing dialogs)
+
+# ============================================================================
+# Alternative Keybinding Examples
+# ============================================================================
+#
+# Use only Ctrl+Q for quit (disable Esc):
+# [keybindings.quit_alt]
+# code = "f13"  # Use an unlikely key to effectively disable
+# modifiers = []
+#
+# Use Ctrl+Shift+Q instead of Ctrl+Q:
+# [keybindings.quit]
+# code = "q"
+# modifiers = ["ctrl", "shift"]
+#
+# Emacs-style save:
+# [keybindings.save]
+# code = "x"
+# modifiers = ["ctrl"]
+#
+# Use Ctrl+E for file browser (like some IDEs):
+# [keybindings.toggle_file_browser]
+# code = "e"
+# modifiers = ["ctrl"]
+#
+# vim-style navigation back/forward:
+# [keybindings.navigate_back]
+# code = "o"
+# modifiers = ["ctrl"]
+# [keybindings.navigate_forward]
+# code = "i"
+# modifiers = ["ctrl"]
+#
+# macOS-style redo:
+# [keybindings.redo]
+# code = "z"
+# modifiers = ["ctrl", "shift"]
+
+# ============================================================================
+# LSP (Language Server Protocol) Configuration
+# ============================================================================
+#
+# Configure language servers for code intelligence features:
+#   - Syntax highlighting (semantic tokens)
+#   - Code completion (Ctrl+Space)
+#   - Go to definition (Ctrl+G)
+#   - Navigate back/forward (Ctrl+B / Ctrl+F)
+#   - Real-time diagnostics (errors, warnings)
+#
+# Each language can have its own LSP server configuration.
+# The language ID (e.g., "rust", "python") should match the file extensions.
+
+# Rust Language Server (rust-analyzer)
+[lsp.servers.rust]
+command = "rust-analyzer"
+args = []
+enable_completion = true
+enable_diagnostics = true
+enable_goto_definition = true
+
+# Python Language Server (Pyright)
+[lsp.servers.python]
+command = "pyright-langserver"
+args = ["--stdio"]
+enable_completion = true
+enable_diagnostics = true
+enable_goto_definition = true
+
+# MQ Language Server (mq-lsp)
+# For .mq files (Markdown Query Language)
+[lsp.servers.mq]
+command = "mq-lsp"
+args = []
+enable_completion = true
+enable_diagnostics = true
+enable_goto_definition = true
+
+# ============================================================================
+# Additional LSP Server Examples
+# ============================================================================
+#
+# TypeScript/JavaScript (typescript-language-server)
+# [lsp.servers.typescript]
+# command = "typescript-language-server"
+# args = ["--stdio"]
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# [lsp.servers.javascript]
+# command = "typescript-language-server"
+# args = ["--stdio"]
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# Go (gopls)
+# [lsp.servers.go]
+# command = "gopls"
+# args = []
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# C/C++ (clangd)
+# [lsp.servers.c]
+# command = "clangd"
+# args = []
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# [lsp.servers.cpp]
+# command = "clangd"
+# args = []
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# Java (jdtls)
+# [lsp.servers.java]
+# command = "jdtls"
+# args = []
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# Ruby (solargraph)
+# [lsp.servers.ruby]
+# command = "solargraph"
+# args = ["stdio"]
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# PHP (intelephense)
+# [lsp.servers.php]
+# command = "intelephense"
+# args = ["--stdio"]
+# enable_completion = true
+# enable_diagnostics = true
+# enable_goto_definition = true
+#
+# Note: Make sure the LSP server command is installed and available in your PATH.
+# You can install these servers using their respective package managers:
+#   - rust-analyzer: rustup component add rust-analyzer
+#   - pyright: npm install -g pyright
+#   - typescript-language-server: npm install -g typescript-language-server
+#   - gopls: go install golang.org/x/tools/gopls@latest
+#   - clangd: Usually comes with LLVM/Clang installation
