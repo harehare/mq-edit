@@ -18,8 +18,8 @@ use mq_edit::{
     App, Config,
     renderer::CodeRenderer,
     ui::{
-        CompletionPopup, EditorWidget, FileBrowserWidget, GotoLineDialog, QuitDialog, SaveAsDialog, SearchDialog, SearchMode,
-        StatusBar,
+        CompletionPopup, EditorWidget, FileBrowserWidget, GotoLineDialog, QuitDialog, SaveAsDialog,
+        SearchDialog, SearchMode, StatusBar,
     },
 };
 
@@ -295,7 +295,7 @@ fn list_themes() -> Result<()> {
         .map(|(i, theme)| format!("  {}. {}", i + 1, theme))
         .collect::<Vec<_>>()
         .join("\n");
-    
+
     println!(
         "Available syntax highlighting themes:\n\n\
          {}\n\n\

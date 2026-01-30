@@ -329,14 +329,8 @@ mod tests {
             LineType::FrontMatterDelimiter
         );
         // With spaces should not be treated as front matter delimiter
-        assert_eq!(
-            LineAnalyzer::analyze_line("--- "),
-            LineType::HorizontalRule
-        );
+        assert_eq!(LineAnalyzer::analyze_line("--- "), LineType::HorizontalRule);
         // Not at start should be horizontal rule
-        assert_eq!(
-            LineAnalyzer::analyze_line(" ---"),
-            LineType::HorizontalRule
-        );
+        assert_eq!(LineAnalyzer::analyze_line(" ---"), LineType::HorizontalRule);
     }
 }

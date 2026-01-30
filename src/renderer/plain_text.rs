@@ -1,7 +1,7 @@
 use ratatui::{style::Style, text::Span};
 
-use crate::document::DocumentBuffer;
 use super::Renderer;
+use crate::document::DocumentBuffer;
 
 /// Plain text renderer (no formatting)
 ///

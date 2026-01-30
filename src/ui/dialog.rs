@@ -139,13 +139,15 @@ impl<'a> Widget for SaveAsDialog<'a> {
         .split(inner_area);
 
         // Prompt
-        let prompt = Paragraph::new("Enter filename:")
-            .style(Style::default().fg(Color::White));
+        let prompt = Paragraph::new("Enter filename:").style(Style::default().fg(Color::White));
         prompt.render(chunks[1], buf);
 
         // Input field with current filename
-        let input = Paragraph::new(self.filename)
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        let input = Paragraph::new(self.filename).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
         input.render(chunks[2], buf);
 
         // Hint
@@ -223,13 +225,15 @@ impl<'a> Widget for GotoLineDialog<'a> {
         info.render(chunks[1], buf);
 
         // Prompt
-        let prompt = Paragraph::new("Enter line number:")
-            .style(Style::default().fg(Color::White));
+        let prompt = Paragraph::new("Enter line number:").style(Style::default().fg(Color::White));
         prompt.render(chunks[2], buf);
 
         // Input field with current input
-        let input = Paragraph::new(self.line_number)
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        let input = Paragraph::new(self.line_number).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
         input.render(chunks[3], buf);
 
         // Hint
@@ -239,4 +243,3 @@ impl<'a> Widget for GotoLineDialog<'a> {
         hint.render(chunks[4], buf);
     }
 }
-

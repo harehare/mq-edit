@@ -104,9 +104,7 @@ impl<'a> SearchDialog<'a> {
 
         // Fill the input area with background color
         for x in chunks[3].x..chunks[3].x + chunks[3].width {
-            buf[(x, chunks[3].y)]
-                .set_bg(input_bg)
-                .set_char(' ');
+            buf[(x, chunks[3].y)].set_bg(input_bg).set_char(' ');
         }
 
         let input_text = Paragraph::new(display_value).style(input_style);
@@ -238,9 +236,7 @@ impl Widget for SearchDialog<'_> {
                 Span::raw(" All  "),
                 Span::styled(
                     "Esc",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Close"),
             ])
@@ -262,9 +258,7 @@ impl Widget for SearchDialog<'_> {
                 Span::raw(" Prev  "),
                 Span::styled(
                     "Esc",
-                    Style::default()
-                        .fg(Color::Red)
-                        .add_modifier(Modifier::BOLD),
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Close"),
             ])

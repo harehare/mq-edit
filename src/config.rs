@@ -512,4 +512,3 @@ mod tests {
         assert!(config.enable_goto_definition);
     }
 }
-

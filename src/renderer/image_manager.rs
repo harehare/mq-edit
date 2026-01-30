@@ -39,8 +39,8 @@ impl ImageManager {
         let mut cache = self.cache.borrow_mut();
         if !cache.contains_key(&resolved_path) {
             // Load the image
-            let img = image::open(&resolved_path)
-                .map_err(|e| format!("Failed to load image: {}", e))?;
+            let img =
+                image::open(&resolved_path).map_err(|e| format!("Failed to load image: {}", e))?;
             cache.insert(resolved_path.clone(), img);
         }
 
@@ -85,7 +85,8 @@ impl ImageManager {
 
         // Then get the picker
         let mut picker = self.picker.borrow_mut();
-        let picker_ref = picker.as_mut()
+        let picker_ref = picker
+            .as_mut()
             .ok_or_else(|| "Terminal protocol not supported".to_string())?;
 
         Ok(picker_ref.new_resize_protocol(img))

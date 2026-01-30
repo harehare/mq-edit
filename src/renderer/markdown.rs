@@ -3,8 +3,8 @@ use ratatui::{
     text::Span,
 };
 
-use crate::document::{DocumentBuffer, LineType, TableAlignment};
 use super::Renderer;
+use crate::document::{DocumentBuffer, LineType, TableAlignment};
 
 /// Markdown renderer for rich text display
 pub struct MarkdownRenderer {
@@ -38,16 +38,11 @@ impl MarkdownRenderer {
             heading4_style: Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
-            heading_other_style: Style::default()
-                .add_modifier(Modifier::BOLD),
-            code_block_style: Style::default()
-                .fg(Color::Green),
-            quote_style: Style::default()
-                .fg(Color::Gray),
-            quote_border_style: Style::default()
-                .fg(Color::DarkGray),
-            table_border_style: Style::default()
-                .fg(Color::DarkGray),
+            heading_other_style: Style::default().add_modifier(Modifier::BOLD),
+            code_block_style: Style::default().fg(Color::Green),
+            quote_style: Style::default().fg(Color::Gray),
+            quote_border_style: Style::default().fg(Color::DarkGray),
+            table_border_style: Style::default().fg(Color::DarkGray),
             table_header_style: Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
@@ -56,7 +51,12 @@ impl MarkdownRenderer {
     }
 
     /// Render a line as either source (if is_current) or rich formatted (legacy method)
-    pub fn render_line_with_type(&self, content: &str, line_type: &LineType, is_current: bool) -> Vec<Span<'_>> {
+    pub fn render_line_with_type(
+        &self,
+        content: &str,
+        line_type: &LineType,
+        is_current: bool,
+    ) -> Vec<Span<'_>> {
         if is_current {
             // Current line: show source
             vec![Span::styled(content.to_string(), Style::default())]
@@ -110,7 +110,12 @@ impl MarkdownRenderer {
     }
 
     /// Render heading line with optional terminal width for full-width background
-    pub fn render_heading_line_with_width(&self, content: &str, level: usize, terminal_width: Option<usize>) -> Vec<Span<'_>> {
+    pub fn render_heading_line_with_width(
+        &self,
+        content: &str,
+        level: usize,
+        terminal_width: Option<usize>,
+    ) -> Vec<Span<'_>> {
         let style = match level {
             1 => self.heading1_style,
             2 => self.heading2_style,
@@ -134,16 +139,16 @@ impl MarkdownRenderer {
 
         // Add background color for headers - matching the text color tone
         let bg_color = match level {
-            1 => Color::Rgb(0, 60, 80),      // Dark cyan matching Cyan text
-            2 => Color::Rgb(0, 40, 100),     // Dark blue matching Blue text
-            3 => Color::Rgb(60, 0, 80),      // Dark magenta matching Magenta text
-            4 => Color::Rgb(80, 60, 0),      // Dark yellow matching Yellow text
-            _ => Color::Rgb(40, 40, 40),     // Dark gray for others
+            1 => Color::Rgb(0, 60, 80),  // Dark cyan matching Cyan text
+            2 => Color::Rgb(0, 40, 100), // Dark blue matching Blue text
+            3 => Color::Rgb(60, 0, 80),  // Dark magenta matching Magenta text
+            4 => Color::Rgb(80, 60, 0),  // Dark yellow matching Yellow text
+            _ => Color::Rgb(40, 40, 40), // Dark gray for others
         };
         let style_with_bg = style.bg(bg_color);
 
         let heading_text = format!("{}{}", prefix, text);
-        
+
         // If terminal width is provided, pad to fill the line
         if let Some(width) = terminal_width {
             let text_len = heading_text.chars().count();
@@ -151,7 +156,7 @@ impl MarkdownRenderer {
                 let padding = " ".repeat(width - text_len);
                 vec![
                     Span::styled(heading_text, style_with_bg),
-                    Span::styled(padding, Style::default().bg(bg_color))
+                    Span::styled(padding, Style::default().bg(bg_color)),
                 ]
             } else {
                 vec![Span::styled(heading_text, style_with_bg)]
@@ -185,14 +190,16 @@ impl MarkdownRenderer {
             }
         } else if trimmed.starts_with("- [") {
             let bullet = if task_checked { "[✓] " } else { "[ ] " };
-            let text = trimmed.strip_prefix("- [x] ")
+            let text = trimmed
+                .strip_prefix("- [x] ")
                 .or_else(|| trimmed.strip_prefix("- [X] "))
                 .or_else(|| trimmed.strip_prefix("- [ ] "))
                 .unwrap_or(trimmed);
             (bullet.to_string(), text)
         } else {
             let bullet = "• ";
-            let text = trimmed.strip_prefix("- ")
+            let text = trimmed
+                .strip_prefix("- ")
                 .or_else(|| trimmed.strip_prefix("* "))
                 .or_else(|| trimmed.strip_prefix("+ "))
                 .unwrap_or(trimmed);
@@ -234,7 +241,10 @@ impl MarkdownRenderer {
     pub fn render_code_fence_start(&self, lang: Option<&str>) -> Vec<Span<'_>> {
         if let Some(lang) = lang {
             vec![Span::styled(
-                format!("╭─ {} ─────────────────────────────────────────────────────", lang),
+                format!(
+                    "╭─ {} ─────────────────────────────────────────────────────",
+                    lang
+                ),
                 Style::default().fg(Color::DarkGray),
             )]
         } else {
@@ -271,12 +281,20 @@ impl MarkdownRenderer {
     }
 
     /// Render image placeholder with detailed information
-    pub fn render_image_with_info(&self, alt_text: &str, path: &str, dimensions: Option<(u32, u32)>, supports_images: bool) -> Vec<Span<'_>> {
+    pub fn render_image_with_info(
+        &self,
+        alt_text: &str,
+        path: &str,
+        dimensions: Option<(u32, u32)>,
+        supports_images: bool,
+    ) -> Vec<Span<'_>> {
         let mut spans = vec![
             Span::styled("🖼️  ", Style::default().fg(Color::Cyan)),
             Span::styled(
                 format!("[{}]", alt_text),
-                Style::default().fg(Color::Blue).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::ITALIC),
             ),
             Span::styled(" ", Style::default()),
         ];
@@ -291,7 +309,9 @@ impl MarkdownRenderer {
 
         spans.push(Span::styled(
             path.to_string(),
-            Style::default().fg(Color::DarkGray).add_modifier(Modifier::UNDERLINED),
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::UNDERLINED),
         ));
 
         // Add terminal support indicator
@@ -311,12 +331,16 @@ impl MarkdownRenderer {
             Span::styled("🖼️  ", Style::default().fg(Color::Cyan)),
             Span::styled(
                 format!("[{}]", alt_text),
-                Style::default().fg(Color::Blue).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::ITALIC),
             ),
             Span::styled(" ", Style::default()),
             Span::styled(
                 path.to_string(),
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::UNDERLINED),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::UNDERLINED),
             ),
         ]
     }
@@ -399,7 +423,10 @@ impl MarkdownRenderer {
         spans.push(Span::styled("│", self.table_border_style));
 
         for (i, cell) in cells.iter().enumerate() {
-            let width = column_widths.get(i).copied().unwrap_or(cell.chars().count());
+            let width = column_widths
+                .get(i)
+                .copied()
+                .unwrap_or(cell.chars().count());
             let alignment = alignments.get(i).copied().unwrap_or(TableAlignment::Left);
 
             // Pad cell content based on alignment
@@ -436,7 +463,12 @@ impl MarkdownRenderer {
             TableAlignment::Center => {
                 let left_pad = padding / 2;
                 let right_pad = padding - left_pad;
-                format!("{}{}{}", " ".repeat(left_pad), content, " ".repeat(right_pad))
+                format!(
+                    "{}{}{}",
+                    " ".repeat(left_pad),
+                    content,
+                    " ".repeat(right_pad)
+                )
             }
         }
     }
@@ -453,16 +485,18 @@ impl MarkdownRenderer {
     fn render_front_matter_content(&self, content: &str) -> Vec<Span<'_>> {
         // Simple YAML syntax highlighting
         let trimmed = content.trim_start();
-        
+
         // Check if it's a YAML key-value pair
         if let Some(colon_pos) = trimmed.find(':') {
             let key = &trimmed[..colon_pos];
             let value = &trimmed[colon_pos..];
-            
+
             vec![
                 Span::styled(
                     key.to_string(),
-                    Style::default().fg(Color::Rgb(150, 180, 200)).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(Color::Rgb(150, 180, 200))
+                        .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     value.to_string(),
@@ -479,7 +513,9 @@ impl MarkdownRenderer {
             // YAML comment
             vec![Span::styled(
                 content.to_string(),
-                Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
             )]
         } else {
             // Default front matter style
@@ -491,21 +527,26 @@ impl MarkdownRenderer {
     }
 
     /// Determine line type with context awareness for front matter
-    fn determine_line_type(&self, buffer: &DocumentBuffer, line_idx: usize, content: &str) -> crate::document::LineType {
+    fn determine_line_type(
+        &self,
+        buffer: &DocumentBuffer,
+        line_idx: usize,
+        content: &str,
+    ) -> crate::document::LineType {
         use crate::document::LineAnalyzer;
-        
+
         let line_type = LineAnalyzer::analyze_line(content);
-        
+
         // Check if we're inside a front matter block
         if let crate::document::LineType::FrontMatterDelimiter = line_type {
             return line_type;
         }
-        
+
         // Check if this line is inside a front matter block
         if self.is_inside_front_matter(buffer, line_idx) {
             return crate::document::LineType::FrontMatterContent;
         }
-        
+
         line_type
     }
 
@@ -515,7 +556,7 @@ impl MarkdownRenderer {
         if line_idx == 0 {
             return false;
         }
-        
+
         // Check if line 0 is a front matter delimiter
         if let Some(first_line) = buffer.line(0) {
             let first_trimmed = first_line.trim();
@@ -525,7 +566,7 @@ impl MarkdownRenderer {
         } else {
             return false;
         }
-        
+
         // Look backwards from current line to find if we're between delimiters
         let mut delimiter_count = 0;
         for i in 0..=line_idx {
@@ -536,7 +577,7 @@ impl MarkdownRenderer {
                 }
             }
         }
-        
+
         // If we've seen exactly one delimiter, we're inside the front matter
         delimiter_count == 1
     }
