@@ -3,7 +3,6 @@ pub mod config;
 pub mod document;
 pub mod editor;
 pub mod file;
-pub mod lsp;
 pub mod navigation;
 pub mod renderer;
 pub mod ui;

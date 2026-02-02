@@ -7,8 +7,8 @@ use ratatui::{
 };
 
 use crate::document::{DocumentBuffer, LineAnalyzer, LineType, TableAlignment};
-use crate::lsp::DiagnosticsManager;
 use crate::renderer::{CodeRenderer, ImageManager, MarkdownRenderer, Renderer};
+use mq_lsp::DiagnosticsManager;
 
 /// Table rendering context
 struct TableContext {

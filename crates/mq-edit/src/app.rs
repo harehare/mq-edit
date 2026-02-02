@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lsp_types::CompletionItem;
 use miette::Result;
+use mq_lsp::{DiagnosticsManager, LspEvent, LspManager};
 
 use crate::config::Config;
-use crate::document::{CursorMovement, DocumentBuffer};
-use crate::lsp::{DiagnosticsManager, LspManager};
+use crate::document::{CursorMovement, DocumentBuffer, FileType};
 use crate::navigation::{FileLocation, NavigationHistory};
 use crate::renderer::{CodeRenderer, ImageManager};
 use crate::ui::{FileTree, SearchField, SearchMode};
@@ -94,7 +94,10 @@ impl App {
         image_manager.set_base_path(current_dir.clone());
 
         // Create LSP manager
-        let lsp_manager = Some(LspManager::new(config.clone(), current_dir.clone()));
+        let lsp_manager = Some(LspManager::new(
+            config.lsp_server_configs(),
+            current_dir.clone(),
+        ));
 
         let show_line_numbers = config.editor.show_line_numbers;
         let show_current_line_highlight = config.editor.show_current_line_highlight;
@@ -153,15 +156,20 @@ impl App {
         image_manager.set_base_path(path.to_path_buf());
 
         // Create LSP manager
-        let mut lsp_manager = Some(LspManager::new(config.clone(), current_dir.clone()));
+        let mut lsp_manager = Some(LspManager::new(
+            config.lsp_server_configs(),
+            current_dir.clone(),
+        ));
 
         // Notify LSP that a document was opened
         let diagnostics_manager = DiagnosticsManager::new();
+        let language_id = file_type_to_language_id(buffer.file_type());
         if let Some(ref mut lsp) = lsp_manager
-            && lsp.is_enabled_for_file_type(buffer.file_type())
+            && let Some(lang_id) = &language_id
+            && lsp.is_enabled(lang_id)
         {
             let content = buffer.content();
-            if let Err(e) = lsp.did_open(buffer.file_type(), path, &content) {
+            if let Err(e) = lsp.did_open(lang_id, path, &content) {
                 eprintln!("LSP did_open error: {}", e);
             }
         }
@@ -403,11 +411,13 @@ impl App {
         self.document_version = 1;
 
         // Notify LSP that a document was opened
+        let language_id = file_type_to_language_id(self.buffer.file_type());
         if let Some(ref mut lsp) = self.lsp_manager
-            && lsp.is_enabled_for_file_type(self.buffer.file_type())
+            && let Some(lang_id) = &language_id
+            && lsp.is_enabled(lang_id)
         {
             let content = self.buffer.content();
-            if let Err(e) = lsp.did_open(self.buffer.file_type(), path, &content) {
+            if let Err(e) = lsp.did_open(lang_id, path, &content) {
                 eprintln!("LSP did_open error: {}", e);
             }
         }
@@ -427,18 +437,18 @@ impl App {
         // Process events without holding the lsp_manager borrow
         for (_language_id, event) in events {
             match event {
-                crate::lsp::LspEvent::Diagnostics(params) => {
+                LspEvent::Diagnostics(params) => {
                     // Convert LSP diagnostics to our format and update the manager
                     self.diagnostics_manager.update(params.diagnostics);
                 }
-                crate::lsp::LspEvent::SemanticTokens(_uri, tokens) => {
+                LspEvent::SemanticTokens(_uri, tokens) => {
                     // Semantic tokens received - decode and store in CodeRenderer
                     let content = self.buffer.content();
                     let decoded_tokens =
                         crate::renderer::code::decode_semantic_tokens(&tokens, &content);
                     self.code_renderer.set_semantic_tokens(decoded_tokens);
                 }
-                crate::lsp::LspEvent::Completion(completion) => {
+                LspEvent::Completion(completion) => {
                     // Completion items received - display popup
                     use lsp_types::CompletionResponse;
 
@@ -455,7 +465,7 @@ impl App {
                         self.filter_completion_items();
                     }
                 }
-                crate::lsp::LspEvent::Definition(response) => {
+                LspEvent::Definition(response) => {
                     // Definition response received
                     // Save current location to history if we had a pending request
                     if let Some((file_path, line, column)) = self.pending_definition_request.take()
@@ -469,31 +479,33 @@ impl App {
                         self.set_status_message(format!("Failed to jump to definition: {}", e));
                     }
                 }
-                crate::lsp::LspEvent::References(_locations) => {
+                LspEvent::References(_locations) => {
                     // References response received
                     // TODO: Display references list
                 }
-                crate::lsp::LspEvent::Initialized(trigger_chars) => {
+                LspEvent::Initialized(trigger_chars) => {
                     // Server initialized - save trigger characters and request semantic tokens
                     if let Some(ref mut lsp) = self.lsp_manager {
                         // Save trigger characters for this language
-                        if let crate::document::FileType::Code(lang_id) = self.buffer.file_type() {
+                        if let FileType::Code(lang_id) = self.buffer.file_type() {
                             lsp.set_trigger_characters(lang_id, trigger_chars);
+                        } else if let FileType::Markdown = self.buffer.file_type() {
+                            lsp.set_trigger_characters("markdown", trigger_chars);
                         }
 
+                        let language_id = file_type_to_language_id(self.buffer.file_type());
                         if let Some(file_path) = self.buffer.file_path()
-                            && lsp.is_enabled_for_file_type(self.buffer.file_type())
+                            && let Some(lang_id) = &language_id
+                            && lsp.is_enabled(lang_id)
                         {
                             let path_buf = file_path.to_path_buf();
-                            if let Err(e) =
-                                lsp.request_semantic_tokens(self.buffer.file_type(), &path_buf)
-                            {
+                            if let Err(e) = lsp.request_semantic_tokens(lang_id, &path_buf) {
                                 eprintln!("Failed to request semantic tokens: {}", e);
                             }
                         }
                     }
                 }
-                crate::lsp::LspEvent::Error(err) => {
+                LspEvent::Error(err) => {
                     eprintln!("LSP error: {}", err);
                 }
             }
@@ -502,24 +514,21 @@ impl App {
 
     /// Notify LSP that the document has changed
     fn notify_lsp_document_change(&mut self) {
+        let language_id = file_type_to_language_id(self.buffer.file_type());
         if let Some(ref mut lsp) = self.lsp_manager
             && let Some(file_path) = self.buffer.file_path()
-            && lsp.is_enabled_for_file_type(self.buffer.file_type())
+            && let Some(lang_id) = &language_id
+            && lsp.is_enabled(lang_id)
         {
             self.document_version += 1;
             let content = self.buffer.content();
             let path_buf = file_path.to_path_buf();
-            if let Err(e) = lsp.did_change(
-                self.buffer.file_type(),
-                &path_buf,
-                self.document_version,
-                &content,
-            ) {
+            if let Err(e) = lsp.did_change(lang_id, &path_buf, self.document_version, &content) {
                 eprintln!("LSP did_change error: {}", e);
             }
 
             // Request new semantic tokens after document change
-            if let Err(e) = lsp.request_semantic_tokens(self.buffer.file_type(), &path_buf) {
+            if let Err(e) = lsp.request_semantic_tokens(lang_id, &path_buf) {
                 eprintln!("Failed to request semantic tokens: {}", e);
             }
         }
@@ -527,9 +536,12 @@ impl App {
 
     /// Request go to definition at current cursor position
     pub fn request_go_to_definition(&mut self) -> Result<()> {
+        let language_id = file_type_to_language_id(self.buffer.file_type());
         if let Some(ref mut lsp) = self.lsp_manager {
             if let Some(file_path) = self.buffer.file_path() {
-                if lsp.is_enabled_for_file_type(self.buffer.file_type()) {
+                if let Some(lang_id) = &language_id
+                    && lsp.is_enabled(lang_id)
+                {
                     let cursor = self.buffer.cursor();
                     let path_buf = file_path.to_path_buf();
 
@@ -537,13 +549,8 @@ impl App {
                     self.pending_definition_request =
                         Some((path_buf.clone(), cursor.line, cursor.column));
 
-                    lsp.request_definition(
-                        self.buffer.file_type(),
-                        &path_buf,
-                        cursor.line as u32,
-                        cursor.column as u32,
-                    )
-                    .map_err(|e| miette::miette!("Failed to request definition: {}", e))?;
+                    lsp.request_definition(lang_id, &path_buf, cursor.line as u32, cursor.column as u32)
+                        .map_err(|e| miette::miette!("Failed to request definition: {}", e))?;
 
                     self.set_status_message("Requesting definition...".to_string());
                 } else {
@@ -660,9 +667,12 @@ impl App {
 
     /// Request code completion at current cursor position
     pub fn request_completion(&mut self, trigger_character: Option<String>) -> Result<()> {
+        let language_id = file_type_to_language_id(self.buffer.file_type());
         if let Some(ref mut lsp) = self.lsp_manager {
             if let Some(file_path) = self.buffer.file_path() {
-                if lsp.is_enabled_for_file_type(self.buffer.file_type()) {
+                if let Some(lang_id) = &language_id
+                    && lsp.is_enabled(lang_id)
+                {
                     let cursor = self.buffer.cursor();
                     let path_buf = file_path.to_path_buf();
 
@@ -672,7 +682,7 @@ impl App {
                         self.buffer.word_start_column(cursor.line, cursor.column);
 
                     lsp.request_completion(
-                        self.buffer.file_type(),
+                        lang_id,
                         &path_buf,
                         cursor.line as u32,
                         cursor.column as u32,
@@ -906,14 +916,16 @@ impl App {
         self.close_save_as_dialog();
 
         // Update file type based on new extension
-        let file_type = crate::document::FileType::from_path(&path);
-        if let Some(lsp) = &mut self.lsp_manager {
+        let file_type = FileType::from_path(&path);
+        let language_id = file_type_to_language_id(&file_type);
+        if let Some(lsp) = &mut self.lsp_manager
+            && let Some(lang_id) = &language_id
+            && lsp.is_enabled(lang_id)
+        {
             // Notify LSP of the new file
-            if lsp.is_enabled_for_file_type(&file_type) {
-                let content = self.buffer.content();
-                if let Err(e) = lsp.did_open(&file_type, &path, &content) {
-                    eprintln!("LSP did_open error: {}", e);
-                }
+            let content = self.buffer.content();
+            if let Err(e) = lsp.did_open(lang_id, &path, &content) {
+                eprintln!("LSP did_open error: {}", e);
             }
         }
 
@@ -1259,8 +1271,10 @@ impl App {
                 self.buffer.insert_char(c);
                 self.notify_lsp_document_change();
                 // Check if the character is a trigger character for completion
+                let language_id = file_type_to_language_id(self.buffer.file_type());
                 if let Some(ref lsp) = self.lsp_manager
-                    && lsp.is_trigger_character(self.buffer.file_type(), c)
+                    && let Some(lang_id) = &language_id
+                    && lsp.is_trigger_character(lang_id, c)
                 {
                     // Trigger completion with the character
                     let _ = self.request_completion(Some(c.to_string()));
@@ -1488,5 +1502,14 @@ impl App {
 impl Default for App {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Convert FileType to language ID string for LSP
+fn file_type_to_language_id(file_type: &FileType) -> Option<String> {
+    match file_type {
+        FileType::Code(lang_id) => Some(lang_id.clone()),
+        FileType::Markdown => Some("markdown".to_string()),
+        FileType::PlainText => None,
     }
 }

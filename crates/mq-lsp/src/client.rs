@@ -600,6 +600,70 @@ impl LspClient {
     }
 }
 
+impl crate::backend::LspBackend for LspClient {
+    fn initialize(&mut self) -> miette::Result<()> {
+        self.initialize()
+    }
+
+    fn initialized(&mut self) -> miette::Result<()> {
+        self.initialized()
+    }
+
+    fn did_open(&mut self, file_path: &std::path::Path, content: &str) -> miette::Result<()> {
+        self.did_open(file_path, content)
+    }
+
+    fn did_change(
+        &mut self,
+        file_path: &std::path::Path,
+        version: i32,
+        content: &str,
+    ) -> miette::Result<()> {
+        self.did_change(file_path, version, content)
+    }
+
+    fn request_semantic_tokens(&mut self, file_path: &std::path::Path) -> miette::Result<()> {
+        self.request_semantic_tokens(file_path)
+    }
+
+    fn request_completion(
+        &mut self,
+        file_path: &std::path::Path,
+        line: u32,
+        character: u32,
+        trigger_character: Option<String>,
+    ) -> miette::Result<()> {
+        self.request_completion(file_path, line, character, trigger_character)
+    }
+
+    fn request_definition(
+        &mut self,
+        file_path: &std::path::Path,
+        line: u32,
+        character: u32,
+    ) -> miette::Result<()> {
+        self.request_definition(file_path, line, character)
+    }
+
+    fn request_references(
+        &mut self,
+        file_path: &std::path::Path,
+        line: u32,
+        character: u32,
+        include_declaration: bool,
+    ) -> miette::Result<()> {
+        self.request_references(file_path, line, character, include_declaration)
+    }
+
+    fn shutdown(&mut self) -> miette::Result<()> {
+        self.shutdown()
+    }
+
+    fn language_id(&self) -> &str {
+        &self.language_id
+    }
+}
+
 impl Drop for LspClient {
     fn drop(&mut self) {
         let _ = self.shutdown();

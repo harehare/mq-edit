@@ -1,4 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use mq_lsp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -21,6 +22,7 @@ impl Default for LspConfig {
             LspServerConfig {
                 command: "rust-analyzer".to_string(),
                 args: vec![],
+                embedded: false,
                 enable_completion: true,
                 enable_diagnostics: true,
                 enable_goto_definition: true,
@@ -33,6 +35,7 @@ impl Default for LspConfig {
             LspServerConfig {
                 command: "pyright-langserver".to_string(),
                 args: vec!["--stdio".to_string()],
+                embedded: false,
                 enable_completion: true,
                 enable_diagnostics: true,
                 enable_goto_definition: true,
@@ -45,8 +48,22 @@ impl Default for LspConfig {
             LspServerConfig {
                 command: "mq-lsp".to_string(),
                 args: vec![],
+                embedded: false,
                 enable_completion: true,
                 enable_diagnostics: true,
+                enable_goto_definition: true,
+            },
+        );
+
+        // Add default Markdown embedded LSP configuration
+        servers.insert(
+            "markdown".to_string(),
+            LspServerConfig {
+                command: String::new(),
+                args: vec![],
+                embedded: true,
+                enable_completion: true,
+                enable_diagnostics: false,
                 enable_goto_definition: true,
             },
         );
@@ -59,11 +76,18 @@ impl Default for LspConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LspServerConfig {
     /// Command to start the LSP server (e.g., "rust-analyzer")
+    /// Not required for embedded LSP servers
+    #[serde(default)]
     pub command: String,
 
     /// Command-line arguments for the server
     #[serde(default)]
     pub args: Vec<String>,
+
+    /// Use embedded LSP implementation instead of external process
+    /// When true, the command field is ignored
+    #[serde(default)]
+    pub embedded: bool,
 
     /// Enable code completion
     #[serde(default = "default_true")]
@@ -170,6 +194,27 @@ impl Config {
         } else {
             std::path::PathBuf::from(".mq-edit.toml")
         }
+    }
+
+    /// Convert LSP server configs to mq_lsp format
+    pub fn lsp_server_configs(&self) -> HashMap<String, mq_lsp::LspServerConfig> {
+        self.lsp
+            .servers
+            .iter()
+            .map(|(key, config)| {
+                (
+                    key.clone(),
+                    mq_lsp::LspServerConfig {
+                        command: config.command.clone(),
+                        args: config.args.clone(),
+                        embedded: config.embedded,
+                        enable_completion: config.enable_completion,
+                        enable_diagnostics: config.enable_diagnostics,
+                        enable_goto_definition: config.enable_goto_definition,
+                    },
+                )
+            })
+            .collect()
     }
 }
 
@@ -465,6 +510,7 @@ mod tests {
             LspServerConfig {
                 command: "test-lsp".to_string(),
                 args: vec!["--test".to_string()],
+                embedded: false,
                 enable_completion: true,
                 enable_diagnostics: false,
                 enable_goto_definition: true,
