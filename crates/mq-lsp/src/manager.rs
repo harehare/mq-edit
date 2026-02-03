@@ -99,7 +99,7 @@ impl LspManager {
                     return Err(miette::miette!(
                         "No embedded LSP implementation for language: {}",
                         language_id
-                    ))
+                    ));
                 }
             }
         } else {

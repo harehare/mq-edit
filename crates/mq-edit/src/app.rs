@@ -549,8 +549,13 @@ impl App {
                     self.pending_definition_request =
                         Some((path_buf.clone(), cursor.line, cursor.column));
 
-                    lsp.request_definition(lang_id, &path_buf, cursor.line as u32, cursor.column as u32)
-                        .map_err(|e| miette::miette!("Failed to request definition: {}", e))?;
+                    lsp.request_definition(
+                        lang_id,
+                        &path_buf,
+                        cursor.line as u32,
+                        cursor.column as u32,
+                    )
+                    .map_err(|e| miette::miette!("Failed to request definition: {}", e))?;
 
                     self.set_status_message("Requesting definition...".to_string());
                 } else {
