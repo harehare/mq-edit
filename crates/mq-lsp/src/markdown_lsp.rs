@@ -1,8 +1,8 @@
 use lsp_types::{
-    CompletionItem, CompletionItemKind, CompletionResponse, GotoDefinitionResponse,
-    InsertTextFormat, Location, Position, Range,
+    CompletionItem, CompletionItemKind, CompletionResponse, Diagnostic, DiagnosticSeverity,
+    GotoDefinitionResponse, InsertTextFormat, Location, Position, Range, Uri as LspUri,
 };
-use mq_markdown::Markdown;
+use mq_markdown::{Heading, Link, Markdown, Node, Position as MdPosition};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -10,36 +10,10 @@ use std::sync::mpsc;
 use crate::backend::LspBackend;
 use crate::client::LspEvent;
 
-/// Simple heading detection for Markdown
-fn is_heading(line: &str) -> Option<usize> {
-    let trimmed = line.trim_start();
-    if let Some(rest) = trimmed.strip_prefix('#') {
-        let mut level = 1;
-        let mut chars = rest.chars();
-        while let Some('#') = chars.next() {
-            level += 1;
-            if level > 6 {
-                break;
-            }
-        }
-        if level <= 6
-            && rest
-                .chars()
-                .nth(level - 1)
-                .is_some_and(|c| c.is_whitespace())
-        {
-            return Some(level);
-        }
-    }
-    None
-}
-
 /// Document state for the embedded Markdown LSP
-#[allow(dead_code)]
 struct MarkdownDocument {
     content: String,
     ast: Option<Markdown>,
-    version: i32,
 }
 
 /// Embedded Markdown Language Server
@@ -66,16 +40,149 @@ impl MarkdownLsp {
     }
 
     /// Parse a markdown document and store it
-    fn parse_document(&mut self, uri: &str, content: &str, version: i32) {
+    fn parse_document(&mut self, uri: &str, content: &str) {
         let ast = Markdown::from_markdown_str(content).ok();
+
+        // Generate diagnostics for broken links
+        if let Some(ref markdown) = ast {
+            self.generate_diagnostics(uri, markdown);
+        }
+
         self.documents.insert(
             uri.to_string(),
             MarkdownDocument {
                 content: content.to_string(),
                 ast,
-                version,
             },
         );
+    }
+
+    /// Find node at a specific position
+    fn find_node_at_position<'a>(
+        &self,
+        ast: &'a Markdown,
+        line: u32,
+        character: u32,
+    ) -> Option<&'a Node> {
+        for node in &ast.nodes {
+            if let Some(pos) = node.position() {
+                // Convert to 0-indexed for comparison (LSP uses 0-indexed)
+                if pos.start.line.saturating_sub(1) <= line as usize
+                    && (line as usize) < pos.end.line
+                    && pos.start.column.saturating_sub(1) <= character as usize
+                    && (character as usize) < pos.end.column
+                {
+                    return Some(node);
+                }
+            }
+        }
+        None
+    }
+
+    /// Check if position is inside a code block
+    fn is_inside_code_block(&self, ast: &Markdown, line: u32, _character: u32) -> bool {
+        for node in &ast.nodes {
+            if let Node::Code(code) = node
+                && let Some(pos) = &code.position
+            {
+                // Check if line is within code block
+                if pos.start.line.saturating_sub(1) <= line as usize
+                    && (line as usize) < pos.end.line
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Collect all headings from the AST
+    fn collect_headings<'a>(&self, ast: &'a Markdown) -> Vec<(&'a Node, &'a Heading)> {
+        ast.nodes
+            .iter()
+            .filter_map(|node| {
+                if let Node::Heading(heading) = node {
+                    Some((node, heading))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Convert markdown position to LSP range
+    fn position_to_lsp_range(pos: &MdPosition) -> Range {
+        Range {
+            start: Position {
+                line: (pos.start.line - 1) as u32,
+                character: (pos.start.column - 1) as u32,
+            },
+            end: Position {
+                line: (pos.end.line - 1) as u32,
+                character: (pos.end.column - 1) as u32,
+            },
+        }
+    }
+
+    /// Generate diagnostics for broken links
+    fn generate_diagnostics(&self, uri: &str, ast: &Markdown) {
+        let mut diagnostics = Vec::new();
+
+        // Collect all heading slugs
+        let headings = self.collect_headings(ast);
+        let heading_slugs: Vec<String> = headings
+            .iter()
+            .map(|(_, heading)| {
+                let text = heading.values.iter().map(|n| n.value()).collect::<String>();
+                Self::make_heading_slug(&text)
+            })
+            .collect();
+
+        // Check for broken anchor links
+        for node in &ast.nodes {
+            if let Some((anchor, pos)) = Self::extract_anchor_link(node)
+                && !heading_slugs.contains(&anchor)
+                && let Ok(_lsp_uri) = uri.parse::<LspUri>()
+            {
+                diagnostics.push(Diagnostic {
+                    range: Self::position_to_lsp_range(pos),
+                    severity: Some(DiagnosticSeverity::WARNING),
+                    message: format!("Broken link: heading '{}' not found", anchor),
+                    ..Default::default()
+                });
+            }
+        }
+
+        if !diagnostics.is_empty()
+            && let Ok(lsp_uri) = uri.parse::<LspUri>()
+        {
+            let _ =
+                self.event_tx
+                    .send(LspEvent::Diagnostics(lsp_types::PublishDiagnosticsParams {
+                        uri: lsp_uri,
+                        diagnostics,
+                        version: None,
+                    }));
+        }
+    }
+
+    /// Extract anchor link from node if it's an anchor link
+    fn extract_anchor_link(node: &Node) -> Option<(String, &MdPosition)> {
+        match node {
+            Node::Link(Link {
+                url,
+                position: Some(pos),
+                ..
+            }) => {
+                let url_str = url.as_str();
+                if let Some(anchor) = url_str.strip_prefix('#') {
+                    Some((anchor.to_string(), pos))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Get completion items at position
@@ -83,6 +190,13 @@ impl MarkdownLsp {
         let Some(doc) = self.documents.get(uri) else {
             return vec![];
         };
+
+        // Check if inside code block - suppress completions
+        if let Some(ref ast) = doc.ast
+            && self.is_inside_code_block(ast, line, character)
+        {
+            return vec![];
+        }
 
         let lines: Vec<&str> = doc.content.lines().collect();
         let Some(line_content) = lines.get(line as usize) else {
@@ -174,21 +288,22 @@ impl MarkdownLsp {
             }
         }
 
-        // Heading anchor completions for links to same document
-        if prefix.contains("](#") {
-            for (i, l) in lines.iter().enumerate() {
-                if let Some(level) = is_heading(l) {
-                    let heading_text = l.trim_start_matches('#').trim();
-                    let slug = Self::make_heading_slug(heading_text);
-                    items.push(CompletionItem {
-                        label: format!("#{}", slug),
-                        detail: Some(format!("H{}: {}", level, heading_text)),
-                        kind: Some(CompletionItemKind::REFERENCE),
-                        insert_text: Some(slug),
-                        sort_text: Some(format!("{:04}", i)),
-                        ..Default::default()
-                    });
-                }
+        // Heading anchor completions for links to same document (AST-based)
+        if prefix.contains("](#")
+            && let Some(ref ast) = doc.ast
+        {
+            let headings = self.collect_headings(ast);
+            for (i, (_node, heading)) in headings.iter().enumerate() {
+                let heading_text = heading.values.iter().map(|n| n.value()).collect::<String>();
+                let slug = Self::make_heading_slug(&heading_text);
+                items.push(CompletionItem {
+                    label: format!("#{}", slug),
+                    detail: Some(format!("H{}: {}", heading.depth, heading_text)),
+                    kind: Some(CompletionItemKind::REFERENCE),
+                    insert_text: Some(slug),
+                    sort_text: Some(format!("{:04}", i)),
+                    ..Default::default()
+                });
             }
         }
 
@@ -208,64 +323,55 @@ impl MarkdownLsp {
     }
 
     /// Get definition location for links
-    fn get_definition(&self, uri: &str, line: u32, character: u32) -> Option<GotoDefinitionResponse> {
+    fn get_definition(
+        &self,
+        uri: &str,
+        line: u32,
+        character: u32,
+    ) -> Option<GotoDefinitionResponse> {
         let doc = self.documents.get(uri)?;
-        let lines: Vec<&str> = doc.content.lines().collect();
-        let line_content = lines.get(line as usize)?;
+        let ast = doc.ast.as_ref()?;
 
-        let char_pos = character as usize;
+        // Find node at cursor position
+        let node = self.find_node_at_position(ast, line, character)?;
 
-        // Find link at cursor position: [text](target)
-        if let Some(link_start) = line_content[..char_pos.min(line_content.len())].rfind('[') {
-            let rest = &line_content[link_start..];
-            if let Some(paren_start) = rest.find("](")
-                && let Some(paren_end) = rest[paren_start..].find(')')
-            {
-                let link_target = &rest[paren_start + 2..paren_start + paren_end];
+        // Handle Link nodes
+        if let Node::Link(link) = node {
+            let url_str = link.url.as_str();
 
-                // Handle heading links (#heading-slug)
-                if let Some(anchor) = link_target.strip_prefix('#') {
-                    // Find matching heading
-                    for (i, l) in lines.iter().enumerate() {
-                        if is_heading(l).is_some() {
-                            let heading_text = l.trim_start_matches('#').trim();
-                            let heading_slug = Self::make_heading_slug(heading_text);
-                            if heading_slug == anchor {
-                                return Some(GotoDefinitionResponse::Scalar(Location {
-                                    uri: uri.parse().ok()?,
-                                    range: Range {
-                                        start: Position {
-                                            line: i as u32,
-                                            character: 0,
-                                        },
-                                        end: Position {
-                                            line: i as u32,
-                                            character: l.len() as u32,
-                                        },
-                                    },
-                                }));
-                            }
-                        }
+            // Handle heading anchor links (#heading-slug)
+            if let Some(anchor) = url_str.strip_prefix('#') {
+                let headings = self.collect_headings(ast);
+                for (heading_node, heading) in headings {
+                    let heading_text = heading.values.iter().map(|n| n.value()).collect::<String>();
+                    let heading_slug = Self::make_heading_slug(&heading_text);
+                    if heading_slug == anchor
+                        && let Some(pos) = heading_node.position()
+                    {
+                        return Some(GotoDefinitionResponse::Scalar(Location {
+                            uri: uri.parse().ok()?,
+                            range: Self::position_to_lsp_range(&pos),
+                        }));
                     }
                 }
+            }
 
-                // Handle relative file links
-                if !link_target.starts_with("http://") && !link_target.starts_with("https://") {
-                    // Extract file path (remove anchor if present)
-                    let file_part = link_target.split('#').next().unwrap_or(link_target);
-                    if !file_part.is_empty() {
-                        let uri_path = uri.strip_prefix("file://").unwrap_or(uri);
-                        let base_path = Path::new(uri_path);
-                        let parent = base_path.parent().unwrap_or(Path::new("."));
-                        let target_path = parent.join(file_part);
+            // Handle relative file links
+            if !url_str.starts_with("http://") && !url_str.starts_with("https://") {
+                // Extract file path (remove anchor if present)
+                let file_part = url_str.split('#').next().unwrap_or(url_str);
+                if !file_part.is_empty() {
+                    let uri_path = uri.strip_prefix("file://").unwrap_or(uri);
+                    let base_path = Path::new(uri_path);
+                    let parent = base_path.parent().unwrap_or(Path::new("."));
+                    let target_path = parent.join(file_part);
 
-                        if target_path.exists() {
-                            let target_uri = format!("file://{}", target_path.display());
-                            return Some(GotoDefinitionResponse::Scalar(Location {
-                                uri: target_uri.parse().ok()?,
-                                range: Range::default(),
-                            }));
-                        }
+                    if target_path.exists() {
+                        let target_uri = format!("file://{}", target_path.display());
+                        return Some(GotoDefinitionResponse::Scalar(Location {
+                            uri: target_uri.parse().ok()?,
+                            range: Range::default(),
+                        }));
                     }
                 }
             }
@@ -294,13 +400,13 @@ impl LspBackend for MarkdownLsp {
 
     fn did_open(&mut self, file_path: &Path, content: &str) -> miette::Result<()> {
         let uri = Self::path_to_uri(file_path);
-        self.parse_document(&uri, content, 1);
+        self.parse_document(&uri, content);
         Ok(())
     }
 
-    fn did_change(&mut self, file_path: &Path, version: i32, content: &str) -> miette::Result<()> {
+    fn did_change(&mut self, file_path: &Path, _version: i32, content: &str) -> miette::Result<()> {
         let uri = Self::path_to_uri(file_path);
-        self.parse_document(&uri, content, version);
+        self.parse_document(&uri, content);
         Ok(())
     }
 
@@ -385,18 +491,18 @@ mod tests {
     fn test_parse_document() {
         let (mut lsp, _rx) = create_test_lsp();
         let content = "# Hello\n\nWorld";
-        lsp.parse_document("file:///test.md", content, 1);
+        lsp.parse_document("file:///test.md", content);
 
         assert!(lsp.documents.contains_key("file:///test.md"));
         let doc = &lsp.documents["file:///test.md"];
         assert_eq!(doc.content, content);
-        assert_eq!(doc.version, 1);
+        assert!(doc.ast.is_some());
     }
 
     #[test]
     fn test_heading_completions() {
         let (mut lsp, _rx) = create_test_lsp();
-        lsp.parse_document("file:///test.md", "#", 1);
+        lsp.parse_document("file:///test.md", "#");
 
         let completions = lsp.get_completions("file:///test.md", 0, 1);
         assert!(!completions.is_empty());
@@ -406,7 +512,7 @@ mod tests {
     #[test]
     fn test_link_completions() {
         let (mut lsp, _rx) = create_test_lsp();
-        lsp.parse_document("file:///test.md", "[", 1);
+        lsp.parse_document("file:///test.md", "[");
 
         let completions = lsp.get_completions("file:///test.md", 0, 1);
         assert!(completions.iter().any(|c| c.label.contains("text](url)")));
@@ -416,22 +522,26 @@ mod tests {
     fn test_anchor_completions() {
         let (mut lsp, _rx) = create_test_lsp();
         let content = "# First Heading\n\n## Second Heading\n\n[link](#";
-        lsp.parse_document("file:///test.md", content, 1);
+        lsp.parse_document("file:///test.md", content);
 
         let completions = lsp.get_completions("file:///test.md", 4, 8);
-        assert!(completions
-            .iter()
-            .any(|c| c.label.contains("first-heading")));
-        assert!(completions
-            .iter()
-            .any(|c| c.label.contains("second-heading")));
+        assert!(
+            completions
+                .iter()
+                .any(|c| c.label.contains("first-heading"))
+        );
+        assert!(
+            completions
+                .iter()
+                .any(|c| c.label.contains("second-heading"))
+        );
     }
 
     #[test]
     fn test_definition_heading_anchor() {
         let (mut lsp, _rx) = create_test_lsp();
         let content = "# First Heading\n\n[link](#first-heading)";
-        lsp.parse_document("file:///test.md", content, 1);
+        lsp.parse_document("file:///test.md", content);
 
         let definition = lsp.get_definition("file:///test.md", 2, 10);
         assert!(definition.is_some());
@@ -439,14 +549,5 @@ mod tests {
         if let Some(GotoDefinitionResponse::Scalar(loc)) = definition {
             assert_eq!(loc.range.start.line, 0);
         }
-    }
-
-    #[test]
-    fn test_is_heading() {
-        assert_eq!(is_heading("# Heading 1"), Some(1));
-        assert_eq!(is_heading("## Heading 2"), Some(2));
-        assert_eq!(is_heading("### Heading 3"), Some(3));
-        assert_eq!(is_heading("Not a heading"), None);
-        assert_eq!(is_heading("#NoSpace"), None);
     }
 }
