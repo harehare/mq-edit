@@ -1,8 +1,7 @@
 [package]
-name = "mq-lsp"
+name = "md-lsp"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.92.0"
 
 [dependencies]
 lsp-types = "0.97"

@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use mq_lsp;
+use md_lsp;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -196,15 +196,15 @@ impl Config {
         }
     }
 
-    /// Convert LSP server configs to mq_lsp format
-    pub fn lsp_server_configs(&self) -> HashMap<String, mq_lsp::LspServerConfig> {
+    /// Convert LSP server configs to md_lsp format
+    pub fn lsp_server_configs(&self) -> HashMap<String, md_lsp::LspServerConfig> {
         self.lsp
             .servers
             .iter()
             .map(|(key, config)| {
                 (
                     key.clone(),
-                    mq_lsp::LspServerConfig {
+                    md_lsp::LspServerConfig {
                         command: config.command.clone(),
                         args: config.args.clone(),
                         embedded: config.embedded,

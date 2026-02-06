@@ -9,7 +9,7 @@ name = "mq-edit"
 path = "src/main.rs"
 
 [dependencies]
-mq-lsp = { path = "../mq-lsp" }
+md-lsp = { path = "../md-lsp" }
 mq-markdown = "0.5.10"
 ratatui = "0.30"
 crossterm = { version = "0.28", features = ["event-stream"] }
