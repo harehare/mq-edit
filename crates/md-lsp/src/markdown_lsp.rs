@@ -276,6 +276,68 @@ impl MarkdownLsp {
                 "java",
                 "c",
                 "cpp",
+                "ruby",
+                "elixir",
+                "clojure",
+                "haskell",
+                "scala",
+                "sh",
+                "jq",
+                "mq",
+                // Added languages
+                "shell",
+                "powershell",
+                "zsh",
+                "fish",
+                "perl",
+                "php",
+                "swift",
+                "kotlin",
+                "dart",
+                "lua",
+                "groovy",
+                "objective-c",
+                "ocaml",
+                "r",
+                "matlab",
+                "fortran",
+                "assembly",
+                "pascal",
+                "vb",
+                "fsharp",
+                "erlang",
+                "nim",
+                "crystal",
+                "julia",
+                "prolog",
+                "smalltalk",
+                "tcl",
+                "coffee",
+                "typescriptreact",
+                "jsx",
+                "tsx",
+                "css",
+                "scss",
+                "less",
+                "html",
+                "xml",
+                "markdown",
+                "plaintext",
+                "sql",
+                "sqlite",
+                "postgres",
+                "mysql",
+                "redis",
+                "dockerfile",
+                "terraform",
+                "ansible",
+                "puppet",
+                "makefile",
+                "cmake",
+                "gradle",
+                "ini",
+                "toml",
+                "csv",
             ] {
                 items.push(CompletionItem {
                     label: format!("`{}", lang),
@@ -379,6 +441,97 @@ impl MarkdownLsp {
 
         None
     }
+
+    /// Get references for headings and links
+    fn get_references(
+        &self,
+        uri: &str,
+        line: u32,
+        character: u32,
+        include_declaration: bool,
+    ) -> Vec<Location> {
+        let Some(doc) = self.documents.get(uri) else {
+            return vec![];
+        };
+        let Some(ast) = doc.ast.as_ref() else {
+            return vec![];
+        };
+        let Some(node) = self.find_node_at_position(ast, line, character) else {
+            return vec![];
+        };
+        let lsp_uri: LspUri = match uri.parse() {
+            Ok(u) => u,
+            Err(_) => return vec![],
+        };
+
+        let mut locations = Vec::new();
+
+        match node {
+            Node::Heading(heading) => {
+                let heading_text = heading.values.iter().map(|n| n.value()).collect::<String>();
+                let slug = Self::make_heading_slug(&heading_text);
+
+                // Include the heading itself as declaration
+                if include_declaration {
+                    if let Some(pos) = node.position() {
+                        locations.push(Location {
+                            uri: lsp_uri.clone(),
+                            range: Self::position_to_lsp_range(&pos),
+                        });
+                    }
+                }
+
+                // Find all links referencing this heading
+                for n in &ast.nodes {
+                    if let Some((anchor, pos)) = Self::extract_anchor_link(n) {
+                        if anchor == slug {
+                            locations.push(Location {
+                                uri: lsp_uri.clone(),
+                                range: Self::position_to_lsp_range(pos),
+                            });
+                        }
+                    }
+                }
+            }
+            Node::Link(link) => {
+                let url_str = link.url.as_str();
+
+                if let Some(anchor) = url_str.strip_prefix('#') {
+                    // Include the target heading as declaration
+                    if include_declaration {
+                        let headings = self.collect_headings(ast);
+                        for (heading_node, heading) in &headings {
+                            let heading_text =
+                                heading.values.iter().map(|n| n.value()).collect::<String>();
+                            if Self::make_heading_slug(&heading_text) == anchor {
+                                if let Some(pos) = heading_node.position() {
+                                    locations.push(Location {
+                                        uri: lsp_uri.clone(),
+                                        range: Self::position_to_lsp_range(&pos),
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Find all links with the same anchor
+                    for n in &ast.nodes {
+                        if let Some((other_anchor, pos)) = Self::extract_anchor_link(n) {
+                            if other_anchor == anchor {
+                                locations.push(Location {
+                                    uri: lsp_uri.clone(),
+                                    range: Self::position_to_lsp_range(pos),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        locations
+    }
 }
 
 impl LspBackend for MarkdownLsp {
@@ -445,12 +598,16 @@ impl LspBackend for MarkdownLsp {
 
     fn request_references(
         &mut self,
-        _file_path: &Path,
-        _line: u32,
-        _character: u32,
-        _include_declaration: bool,
+        file_path: &Path,
+        line: u32,
+        character: u32,
+        include_declaration: bool,
     ) -> miette::Result<()> {
-        // Not implemented yet
+        let uri = Self::path_to_uri(file_path);
+        let locations = self.get_references(&uri, line, character, include_declaration);
+        if !locations.is_empty() {
+            let _ = self.event_tx.send(LspEvent::References(locations));
+        }
         Ok(())
     }
 
@@ -535,6 +692,52 @@ mod tests {
                 .iter()
                 .any(|c| c.label.contains("second-heading"))
         );
+    }
+
+    #[test]
+    fn test_references_from_heading() {
+        let (mut lsp, _rx) = create_test_lsp();
+        let content = "# First Heading\n\n[link1](#first-heading)\n\n[link2](#first-heading)";
+        lsp.parse_document("file:///test.md", content);
+
+        // Cursor on the heading (line 0)
+        let refs = lsp.get_references("file:///test.md", 0, 5, true);
+        // Should include the heading itself + 2 links
+        assert_eq!(refs.len(), 3);
+        assert_eq!(refs[0].range.start.line, 0); // heading declaration
+    }
+
+    #[test]
+    fn test_references_from_heading_without_declaration() {
+        let (mut lsp, _rx) = create_test_lsp();
+        let content = "# First Heading\n\n[link1](#first-heading)\n\n[link2](#first-heading)";
+        lsp.parse_document("file:///test.md", content);
+
+        let refs = lsp.get_references("file:///test.md", 0, 5, false);
+        // Should include only the 2 links, not the heading itself
+        assert_eq!(refs.len(), 2);
+    }
+
+    #[test]
+    fn test_references_from_link() {
+        let (mut lsp, _rx) = create_test_lsp();
+        let content = "# First Heading\n\n[link1](#first-heading)\n\n[link2](#first-heading)";
+        lsp.parse_document("file:///test.md", content);
+
+        // Cursor on the first link (line 2)
+        let refs = lsp.get_references("file:///test.md", 2, 10, true);
+        // Should include the heading + 2 links
+        assert_eq!(refs.len(), 3);
+    }
+
+    #[test]
+    fn test_references_no_matches() {
+        let (mut lsp, _rx) = create_test_lsp();
+        let content = "Just some text\n\nMore text";
+        lsp.parse_document("file:///test.md", content);
+
+        let refs = lsp.get_references("file:///test.md", 0, 5, true);
+        assert!(refs.is_empty());
     }
 
     #[test]
