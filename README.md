@@ -54,6 +54,7 @@ mq-edit --help
 | `Ctrl+B`         | Navigate back                               |
 | `Ctrl+F`         | Navigate forward                            |
 | `Ctrl+G`         | Go to line                                  |
+| `Ctrl+E`         | Execute mq query                            |
 | `F3`             | Search                                      |
 | `F4`             | Find and replace                            |
 | `Up/Down`        | Move cursor / Select completion             |
@@ -174,6 +175,17 @@ All themes are provided by the [syntect](https://github.com/trishume/syntect) li
 - `Ctrl+Space` - Trigger code completion
 - `Ctrl+L` - Toggle line numbers
 - `Ctrl+Shift+L` - Toggle current line highlight
+
+### mq Query Execution
+
+`mq-edit` has built-in support for [mq (Markdown Query Language)](https://github.com/harehare/mq). Press `Ctrl+E` to open the query dialog and run mq queries against the current document.
+
+- `Ctrl+E` - Open mq query dialog
+- Type a query (e.g. `.heading`, `.link`, `.[] | upcase()`)
+- `Enter` - Execute query and insert result at cursor position
+- `Esc` - Close dialog
+
+The query result is inserted at the current cursor position, and the cursor remains at the insertion start so you can review the output.
 
 ### Search and Navigation
 

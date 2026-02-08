@@ -83,6 +83,12 @@ pub struct App {
     show_goto_line_dialog: bool,
     /// Line number input for goto line dialog
     goto_line_input: String,
+    /// Whether mq query dialog is visible
+    show_mq_query_dialog: bool,
+    /// mq query input string
+    mq_query_input: String,
+    /// mq query result (output or error message)
+    mq_query_result: Option<String>,
 }
 
 impl App {
@@ -140,6 +146,9 @@ impl App {
             save_as_filename: String::new(),
             show_goto_line_dialog: false,
             goto_line_input: String::new(),
+            show_mq_query_dialog: false,
+            mq_query_input: String::new(),
+            mq_query_result: None,
         }
     }
 
@@ -215,6 +224,9 @@ impl App {
             save_as_filename: String::new(),
             show_goto_line_dialog: false,
             goto_line_input: String::new(),
+            show_mq_query_dialog: false,
+            mq_query_input: String::new(),
+            mq_query_result: None,
         })
     }
 
@@ -879,6 +891,80 @@ impl App {
         Ok(())
     }
 
+    /// Check if mq query dialog is visible
+    pub fn show_mq_query_dialog(&self) -> bool {
+        self.show_mq_query_dialog
+    }
+
+    /// Get mq query input
+    pub fn mq_query_input(&self) -> &str {
+        &self.mq_query_input
+    }
+
+    /// Get mq query result
+    pub fn mq_query_result(&self) -> Option<&str> {
+        self.mq_query_result.as_deref()
+    }
+
+    /// Open mq query dialog
+    pub fn open_mq_query_dialog(&mut self) {
+        self.show_mq_query_dialog = true;
+        self.mq_query_input.clear();
+        self.mq_query_result = None;
+    }
+
+    /// Close mq query dialog
+    pub fn close_mq_query_dialog(&mut self) {
+        self.show_mq_query_dialog = false;
+        self.mq_query_input.clear();
+        self.mq_query_result = None;
+    }
+
+    /// Execute mq query against the current buffer content
+    pub fn execute_mq_query(&mut self) {
+        if self.mq_query_input.is_empty() {
+            self.mq_query_result = Some("Error: Query is empty".to_string());
+            return;
+        }
+
+        let content = self.buffer.content();
+        let query = self.mq_query_input.clone();
+
+        let mut engine = mq_lang::DefaultEngine::default();
+        engine.load_builtin_module();
+
+        let input = match mq_lang::parse_markdown_input(&content) {
+            Ok(input) => input,
+            Err(e) => {
+                self.mq_query_result = Some(format!("Error: {}", e));
+                return;
+            }
+        };
+
+        match engine.eval(&query, input.into_iter()) {
+            Ok(results) => {
+                let output = results
+                    .into_iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let start_line = self.buffer.cursor().line;
+                let start_column = self.buffer.cursor().column;
+                self.buffer.insert_str(&output);
+                self.buffer.cursor_mut().line = start_line;
+                self.buffer.cursor_mut().column = start_column;
+                self.buffer.cursor_mut().update_desired_column();
+                self.adjust_scroll();
+                self.notify_lsp_document_change();
+                self.set_status_message("mq query executed successfully.".to_string());
+                self.close_mq_query_dialog();
+            }
+            Err(e) => {
+                self.mq_query_result = Some(format!("Error: {}", e));
+            }
+        }
+    }
+
     /// Open save-as dialog
     pub fn open_save_as_dialog(&mut self) {
         self.show_save_as_dialog = true;
@@ -1089,6 +1175,11 @@ impl App {
             return self.handle_goto_line_key(key);
         }
 
+        // Handle mq query dialog if visible
+        if self.show_mq_query_dialog {
+            return self.handle_mq_query_key(key);
+        }
+
         // Handle completion popup if visible
         if self.show_completion {
             match key.code {
@@ -1231,6 +1322,12 @@ impl App {
         // Go to line
         if self.config.keybindings.goto_line.matches(&key) {
             self.open_goto_line_dialog();
+            return Ok(());
+        }
+
+        // Execute mq query
+        if self.config.keybindings.execute_mq_query.matches(&key) {
+            self.open_mq_query_dialog();
             return Ok(());
         }
 
@@ -1475,6 +1572,28 @@ impl App {
             }
             KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.save_as_filename.push(c);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    /// Handle keyboard input when mq query dialog is visible
+    fn handle_mq_query_key(&mut self, key: KeyEvent) -> Result<()> {
+        match key.code {
+            KeyCode::Esc => {
+                self.close_mq_query_dialog();
+            }
+            KeyCode::Enter => {
+                self.execute_mq_query();
+            }
+            KeyCode::Backspace => {
+                self.mq_query_input.pop();
+                self.mq_query_result = None;
+            }
+            KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.mq_query_input.push(c);
+                self.mq_query_result = None;
             }
             _ => {}
         }

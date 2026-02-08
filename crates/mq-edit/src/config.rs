@@ -268,6 +268,9 @@ pub struct Keybindings {
 
     /// Go to line (default: Ctrl+G)
     pub goto_line: KeyBinding,
+
+    /// Execute mq query (default: Ctrl+E)
+    pub execute_mq_query: KeyBinding,
 }
 
 impl Default for Keybindings {
@@ -350,6 +353,11 @@ impl Default for Keybindings {
             // Ctrl+G for go to line (like vim)
             goto_line: KeyBinding {
                 code: "g".to_string(),
+                modifiers: vec!["ctrl".to_string()],
+            },
+            // Ctrl+E for execute mq query
+            execute_mq_query: KeyBinding {
+                code: "e".to_string(),
                 modifiers: vec!["ctrl".to_string()],
             },
         }

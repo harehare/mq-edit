@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 md-lsp = { path = "../md-lsp" }
+mq-lang = "0.5.13"
 mq-markdown = "0.5.10"
 ratatui = "0.30"
 crossterm = { version = "0.28", features = ["event-stream"] }

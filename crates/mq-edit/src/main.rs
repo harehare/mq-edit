@@ -18,8 +18,8 @@ use mq_edit::{
     App, Config,
     renderer::CodeRenderer,
     ui::{
-        CompletionPopup, EditorWidget, FileBrowserWidget, GotoLineDialog, QuitDialog, SaveAsDialog,
-        SearchDialog, SearchMode, StatusBar,
+        CompletionPopup, EditorWidget, FileBrowserWidget, GotoLineDialog, MqQueryDialog,
+        QuitDialog, SaveAsDialog, SearchDialog, SearchMode, StatusBar,
     },
 };
 
@@ -205,6 +205,13 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         app.buffer().line_count(),
                     );
                     f.render_widget(goto_line_dialog, f.area());
+                }
+
+                // Render mq query dialog if visible
+                if app.show_mq_query_dialog() {
+                    let mq_query_dialog =
+                        MqQueryDialog::new(app.mq_query_input(), app.mq_query_result());
+                    f.render_widget(mq_query_dialog, f.area());
                 }
 
                 // Set cursor position (only when file browser is not visible and no dialog)

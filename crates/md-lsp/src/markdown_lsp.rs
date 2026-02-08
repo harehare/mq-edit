@@ -472,23 +472,23 @@ impl MarkdownLsp {
                 let slug = Self::make_heading_slug(&heading_text);
 
                 // Include the heading itself as declaration
-                if include_declaration
-                    && let Some(pos) = node.position() {
-                        locations.push(Location {
-                            uri: lsp_uri.clone(),
-                            range: Self::position_to_lsp_range(&pos),
-                        });
-                    }
+                if include_declaration && let Some(pos) = node.position() {
+                    locations.push(Location {
+                        uri: lsp_uri.clone(),
+                        range: Self::position_to_lsp_range(&pos),
+                    });
+                }
 
                 // Find all links referencing this heading
                 for n in &ast.nodes {
                     if let Some((anchor, pos)) = Self::extract_anchor_link(n)
-                        && anchor == slug {
-                            locations.push(Location {
-                                uri: lsp_uri.clone(),
-                                range: Self::position_to_lsp_range(pos),
-                            });
-                        }
+                        && anchor == slug
+                    {
+                        locations.push(Location {
+                            uri: lsp_uri.clone(),
+                            range: Self::position_to_lsp_range(pos),
+                        });
+                    }
                 }
             }
             Node::Link(link) => {
@@ -502,24 +502,26 @@ impl MarkdownLsp {
                             let heading_text =
                                 heading.values.iter().map(|n| n.value()).collect::<String>();
                             if Self::make_heading_slug(&heading_text) == anchor
-                                && let Some(pos) = heading_node.position() {
-                                    locations.push(Location {
-                                        uri: lsp_uri.clone(),
-                                        range: Self::position_to_lsp_range(&pos),
-                                    });
-                                }
+                                && let Some(pos) = heading_node.position()
+                            {
+                                locations.push(Location {
+                                    uri: lsp_uri.clone(),
+                                    range: Self::position_to_lsp_range(&pos),
+                                });
+                            }
                         }
                     }
 
                     // Find all links with the same anchor
                     for n in &ast.nodes {
                         if let Some((other_anchor, pos)) = Self::extract_anchor_link(n)
-                            && other_anchor == anchor {
-                                locations.push(Location {
-                                    uri: lsp_uri.clone(),
-                                    range: Self::position_to_lsp_range(pos),
-                                });
-                            }
+                            && other_anchor == anchor
+                        {
+                            locations.push(Location {
+                                uri: lsp_uri.clone(),
+                                range: Self::position_to_lsp_range(pos),
+                            });
+                        }
                     }
                 }
             }
