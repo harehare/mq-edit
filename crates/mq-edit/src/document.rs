@@ -2,6 +2,7 @@ pub mod buffer;
 pub mod cursor;
 pub mod document_type;
 pub mod file_type;
+pub mod history;
 pub mod line_analyzer;
 
 pub use buffer::DocumentBuffer;

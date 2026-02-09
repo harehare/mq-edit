@@ -1337,6 +1337,22 @@ impl App {
             return Ok(());
         }
 
+        // Undo
+        if self.config.keybindings.undo.matches(&key) {
+            self.buffer.undo();
+            self.notify_lsp_document_change();
+            self.adjust_scroll();
+            return Ok(());
+        }
+
+        // Redo
+        if self.config.keybindings.redo.matches(&key) {
+            self.buffer.redo();
+            self.notify_lsp_document_change();
+            self.adjust_scroll();
+            return Ok(());
+        }
+
         // Code completion - Ctrl+Space
         if key.code == KeyCode::Char(' ') && key.modifiers.contains(KeyModifiers::CONTROL) {
             return self.request_completion(None);

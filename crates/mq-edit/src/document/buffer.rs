@@ -4,6 +4,7 @@ use miette::Result;
 use mq_markdown::{Markdown, Node};
 use unicode_width::UnicodeWidthChar;
 
+use super::history::{EditAction, EditHistory};
 use super::{Cursor, CursorMovement, DocumentType, FileType, LineMap};
 
 /// Document buffer that manages content editing for any file type
@@ -21,6 +22,10 @@ pub struct DocumentBuffer {
     lines: Vec<String>,
     /// Whether the buffer has been modified
     modified: bool,
+    /// Edit history for undo/redo
+    history: EditHistory,
+    /// Flag to suppress history recording during undo/redo operations
+    recording: bool,
 }
 
 impl DocumentBuffer {
@@ -38,6 +43,8 @@ impl DocumentBuffer {
             cursor: Cursor::new(),
             lines: vec![String::new()],
             modified: false,
+            history: EditHistory::new(),
+            recording: true,
         }
     }
 
@@ -66,6 +73,8 @@ impl DocumentBuffer {
             cursor: Cursor::new(),
             lines,
             modified: false,
+            history: EditHistory::new(),
+            recording: true,
         })
     }
 
@@ -81,6 +90,8 @@ impl DocumentBuffer {
             cursor: Cursor::new(),
             lines,
             modified: false,
+            history: EditHistory::new(),
+            recording: true,
         })
     }
 
@@ -251,6 +262,17 @@ impl DocumentBuffer {
 
     /// Insert a character at cursor position
     pub fn insert_char(&mut self, c: char) {
+        if self.recording {
+            let cursor_before = self.cursor;
+            self.history.push(
+                EditAction::InsertChar {
+                    line: self.cursor.line,
+                    column: self.cursor.column,
+                    c,
+                },
+                cursor_before,
+            );
+        }
         let byte_idx = self.char_to_byte_idx(self.cursor.line, self.cursor.column);
         if let Some(line) = self.lines.get_mut(self.cursor.line) {
             line.insert(byte_idx, c);
@@ -265,6 +287,18 @@ impl DocumentBuffer {
     pub fn insert_str(&mut self, s: &str) {
         if s.is_empty() {
             return;
+        }
+
+        if self.recording {
+            let cursor_before = self.cursor;
+            self.history.push(
+                EditAction::InsertStr {
+                    line: self.cursor.line,
+                    column: self.cursor.column,
+                    text: s.to_string(),
+                },
+                cursor_before,
+            );
         }
 
         // Split the string by newlines
@@ -334,9 +368,20 @@ impl DocumentBuffer {
         let start_byte = self.char_to_byte_idx(line_idx, start_col);
         let end_byte = self.char_to_byte_idx(line_idx, end_col);
 
-        let line = &mut self.lines[line_idx];
-        if end_byte <= line.len() {
-            line.replace_range(start_byte..end_byte, "");
+        if end_byte <= self.lines[line_idx].len() {
+            if self.recording {
+                let cursor_before = self.cursor;
+                let deleted = self.lines[line_idx][start_byte..end_byte].to_string();
+                self.history.push(
+                    EditAction::DeleteRange {
+                        line: line_idx,
+                        start_col,
+                        deleted,
+                    },
+                    cursor_before,
+                );
+            }
+            self.lines[line_idx].replace_range(start_byte..end_byte, "");
             self.cursor.column = start_col;
             self.cursor.update_desired_column();
             self.modified = true;
@@ -347,11 +392,22 @@ impl DocumentBuffer {
     /// Delete character at cursor (backspace)
     pub fn delete_char(&mut self) {
         if self.cursor.column > 0 {
+            let cursor_before = self.cursor;
             self.cursor.column -= 1;
             let byte_idx = self.char_to_byte_idx(self.cursor.line, self.cursor.column);
             if let Some(line) = self.lines.get_mut(self.cursor.line) {
                 // Find the character at byte_idx and remove it
                 if let Some((_, ch)) = line[byte_idx..].char_indices().next() {
+                    if self.recording {
+                        self.history.push(
+                            EditAction::DeleteChar {
+                                line: self.cursor.line,
+                                column: self.cursor.column,
+                                deleted: ch,
+                            },
+                            cursor_before,
+                        );
+                    }
                     line.replace_range(byte_idx..byte_idx + ch.len_utf8(), "");
                 }
                 self.cursor.update_desired_column();
@@ -359,6 +415,16 @@ impl DocumentBuffer {
                 self.rebuild_document();
             }
         } else if self.cursor.line > 0 {
+            if self.recording {
+                let cursor_before = self.cursor;
+                self.history.push(
+                    EditAction::JoinLines {
+                        line: self.cursor.line,
+                        column: self.lines[self.cursor.line - 1].chars().count(),
+                    },
+                    cursor_before,
+                );
+            }
             // Join with previous line
             let current_line = self.lines.remove(self.cursor.line);
             self.cursor.line -= 1;
@@ -373,6 +439,16 @@ impl DocumentBuffer {
 
     /// Insert newline at cursor
     pub fn insert_newline(&mut self) {
+        if self.recording {
+            let cursor_before = self.cursor;
+            self.history.push(
+                EditAction::InsertNewline {
+                    line: self.cursor.line,
+                    column: self.cursor.column,
+                },
+                cursor_before,
+            );
+        }
         let byte_idx = self.char_to_byte_idx(self.cursor.line, self.cursor.column);
         if let Some(line) = self.lines.get_mut(self.cursor.line) {
             let rest = line.split_off(byte_idx);
@@ -391,6 +467,246 @@ impl DocumentBuffer {
         // Rebuild document type (for Markdown, this reparses the AST)
         let _ = self.document_type.rebuild(&content);
         // If rebuilding fails, keep the old document state (better than crashing)
+    }
+
+    /// Undo the last edit action
+    pub fn undo(&mut self) {
+        if let Some(entry) = self.history.undo() {
+            self.recording = false;
+            self.apply_reverse(&entry.action);
+            self.cursor = entry.cursor_before;
+            self.cursor.update_desired_column();
+            self.modified = true;
+            self.rebuild_document();
+            self.recording = true;
+        }
+    }
+
+    /// Redo the last undone edit action
+    pub fn redo(&mut self) {
+        if let Some(entry) = self.history.redo() {
+            self.recording = false;
+            self.apply_forward(&entry.action);
+            self.modified = true;
+            self.rebuild_document();
+            self.recording = true;
+        }
+    }
+
+    /// Apply the reverse of an edit action (for undo)
+    fn apply_reverse(&mut self, action: &EditAction) {
+        match action {
+            EditAction::InsertChar { line, column, .. } => {
+                // Reverse of insert char: delete the char at that position
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line)
+                    && let Some((_, ch)) = line_content[byte_idx..].char_indices().next()
+                {
+                    line_content.replace_range(byte_idx..byte_idx + ch.len_utf8(), "");
+                }
+            }
+            EditAction::InsertStr { line, column, text } => {
+                // Reverse of insert str: remove the inserted text
+                let inserted_lines: Vec<&str> = text.split('\n').collect();
+                if inserted_lines.len() == 1 {
+                    let byte_idx = self.char_to_byte_idx(*line, *column);
+                    if let Some(line_content) = self.lines.get_mut(*line) {
+                        let end_byte = byte_idx + text.len();
+                        if end_byte <= line_content.len() {
+                            line_content.replace_range(byte_idx..end_byte, "");
+                        }
+                    }
+                } else {
+                    // Multi-line: reconstruct the original line
+                    let first_line_byte = self.char_to_byte_idx(*line, *column);
+                    let last_inserted_line_idx = *line + inserted_lines.len() - 1;
+                    let last_inserted_chars = inserted_lines.last().unwrap().chars().count();
+                    let last_line_rest_byte =
+                        self.char_to_byte_idx(last_inserted_line_idx, last_inserted_chars);
+
+                    // Get the part before insertion on the first line
+                    let before = self.lines[*line][..first_line_byte].to_string();
+                    // Get the part after insertion on the last line
+                    let after =
+                        self.lines[last_inserted_line_idx][last_line_rest_byte..].to_string();
+
+                    // Remove the inserted lines (keep the first line)
+                    for _ in 0..inserted_lines.len() - 1 {
+                        if *line + 1 < self.lines.len() {
+                            self.lines.remove(*line + 1);
+                        }
+                    }
+
+                    // Reconstruct the original line
+                    self.lines[*line] = format!("{}{}", before, after);
+                }
+            }
+            EditAction::InsertNewline { line, column } => {
+                // Reverse of insert newline: join line+1 back into line at column
+                if *line + 1 < self.lines.len() {
+                    let next_line = self.lines.remove(*line + 1);
+                    let byte_idx = self.char_to_byte_idx(*line, *column);
+                    if let Some(line_content) = self.lines.get_mut(*line) {
+                        // Truncate at column and append next line
+                        line_content.truncate(byte_idx);
+                        line_content.push_str(&next_line);
+                    }
+                }
+            }
+            EditAction::DeleteChar {
+                line,
+                column,
+                deleted,
+            } => {
+                // Reverse of delete char: re-insert the deleted char
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    line_content.insert(byte_idx, *deleted);
+                }
+            }
+            EditAction::JoinLines { line, column } => {
+                // Reverse of join lines: split the line back
+                let byte_idx = self.char_to_byte_idx(*line - 1, *column);
+                if let Some(prev_line) = self.lines.get_mut(*line - 1) {
+                    let rest = prev_line.split_off(byte_idx);
+                    self.lines.insert(*line, rest);
+                }
+            }
+            EditAction::DeleteRange {
+                line,
+                start_col,
+                deleted,
+            } => {
+                // Reverse of delete range: re-insert the deleted text
+                let byte_idx = self.char_to_byte_idx(*line, *start_col);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    line_content.insert_str(byte_idx, deleted);
+                }
+            }
+            EditAction::ReplaceAt {
+                line,
+                column,
+                old_text,
+                new_text,
+            } => {
+                // Reverse of replace: replace new_text back with old_text
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    let end_byte = byte_idx + new_text.len();
+                    if end_byte <= line_content.len() {
+                        line_content.replace_range(byte_idx..end_byte, old_text);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Apply an edit action forward (for redo)
+    fn apply_forward(&mut self, action: &EditAction) {
+        match action {
+            EditAction::InsertChar { line, column, c } => {
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    line_content.insert(byte_idx, *c);
+                }
+                self.cursor.line = *line;
+                self.cursor.column = *column + 1;
+                self.cursor.update_desired_column();
+            }
+            EditAction::InsertStr { line, column, text } => {
+                // Re-apply the insert_str logic
+                let inserted_lines: Vec<&str> = text.split('\n').collect();
+                if inserted_lines.len() == 1 {
+                    let byte_idx = self.char_to_byte_idx(*line, *column);
+                    if let Some(line_content) = self.lines.get_mut(*line) {
+                        line_content.insert_str(byte_idx, text);
+                    }
+                    self.cursor.line = *line;
+                    self.cursor.column = *column + text.chars().count();
+                } else {
+                    let byte_idx = self.char_to_byte_idx(*line, *column);
+                    if let Some(current_line) = self.lines.get_mut(*line) {
+                        let rest = current_line.split_off(byte_idx);
+                        current_line.push_str(inserted_lines[0]);
+
+                        for (i, &il) in inserted_lines[1..inserted_lines.len() - 1]
+                            .iter()
+                            .enumerate()
+                        {
+                            self.lines.insert(*line + 1 + i, il.to_string());
+                        }
+
+                        let last_line_idx = *line + inserted_lines.len() - 1;
+                        let mut last_line = inserted_lines.last().unwrap().to_string();
+                        let new_cursor_column = last_line.chars().count();
+                        last_line.push_str(&rest);
+                        self.lines.insert(last_line_idx, last_line);
+
+                        self.cursor.line = last_line_idx;
+                        self.cursor.column = new_cursor_column;
+                    }
+                }
+                self.cursor.update_desired_column();
+            }
+            EditAction::InsertNewline { line, column } => {
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    let rest = line_content.split_off(byte_idx);
+                    self.lines.insert(*line + 1, rest);
+                }
+                self.cursor.line = *line + 1;
+                self.cursor.column = 0;
+                self.cursor.update_desired_column();
+            }
+            EditAction::DeleteChar {
+                line,
+                column,
+                deleted,
+            } => {
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    line_content.replace_range(byte_idx..byte_idx + deleted.len_utf8(), "");
+                }
+                self.cursor.line = *line;
+                self.cursor.column = *column;
+                self.cursor.update_desired_column();
+            }
+            EditAction::JoinLines { line, column } => {
+                let current_line = self.lines.remove(*line);
+                self.lines[*line - 1].push_str(&current_line);
+                self.cursor.line = *line - 1;
+                self.cursor.column = *column;
+                self.cursor.update_desired_column();
+            }
+            EditAction::DeleteRange {
+                line,
+                start_col,
+                deleted,
+            } => {
+                let start_byte = self.char_to_byte_idx(*line, *start_col);
+                let end_byte = start_byte + deleted.len();
+                if end_byte <= self.lines[*line].len() {
+                    self.lines[*line].replace_range(start_byte..end_byte, "");
+                }
+                self.cursor.line = *line;
+                self.cursor.column = *start_col;
+                self.cursor.update_desired_column();
+            }
+            EditAction::ReplaceAt {
+                line,
+                column,
+                old_text,
+                new_text,
+            } => {
+                let byte_idx = self.char_to_byte_idx(*line, *column);
+                if let Some(line_content) = self.lines.get_mut(*line) {
+                    let end_byte = byte_idx + old_text.len();
+                    if end_byte <= line_content.len() {
+                        line_content.replace_range(byte_idx..end_byte, new_text);
+                    }
+                }
+            }
+        }
     }
 
     /// Save buffer to file
@@ -601,6 +917,19 @@ impl DocumentBuffer {
         }
         if &line_content[byte_idx..byte_idx + old_text.len()] != old_text {
             return false;
+        }
+
+        if self.recording {
+            let cursor_before = self.cursor;
+            self.history.push(
+                EditAction::ReplaceAt {
+                    line,
+                    column,
+                    old_text: old_text.to_string(),
+                    new_text: new_text.to_string(),
+                },
+                cursor_before,
+            );
         }
 
         // Perform the replacement
