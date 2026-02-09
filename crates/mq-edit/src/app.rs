@@ -945,7 +945,13 @@ impl App {
             Ok(results) => {
                 let output = results
                     .into_iter()
-                    .map(|v| v.to_string())
+                    .filter_map(|v| {
+                        if v.is_empty() {
+                            None
+                        } else {
+                            Some(v.to_string())
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
                 let start_line = self.buffer.cursor().line;
