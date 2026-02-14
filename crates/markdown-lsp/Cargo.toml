@@ -1,7 +1,19 @@
 [package]
+authors = ["Takahiro Sato <harehare1110@gmail.com>"]
+categories = ["command-line-utilities"]
+description = "A markdown editor for the terminal"
 edition = "2024"
+homepage = "https://mqlang.org/"
+keywords = ["markdown", "cli", "tui", "editor"]
+license = "MIT"
 name = "markdown-lsp"
+readme = "../../README.md"
+repository = "https://github.com/harehare/mq-edit"
 version = "0.1.0"
+
+[[bin]]
+name = "markdown-lsp"
+path = "src/main.rs"
 
 [dependencies]
 lsp-server = "0.7"
@@ -10,3 +22,4 @@ miette = {version = "7.6", features = ["fancy"]}
 mq-markdown = "0.5.10"
 serde = {version = "1.0", features = ["derive"]}
 serde_json = "1.0"
+
