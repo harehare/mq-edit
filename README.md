@@ -60,6 +60,24 @@ mq-edit --help
 | `Up/Down`        | Move cursor / Select completion             |
 | `Enter`          | Apply completion                            |
 
+## Pipe Mode
+
+`mq-edit` supports pipe mode, allowing you to read from stdin and write to stdout. This is useful for combining with [mq](https://github.com/harehare/mq) and other command-line tools. In pipe mode, pressing `Esc` exits immediately without a save confirmation dialog — the edited content is written to stdout on exit.
+
+```bash
+# Edit mq output interactively, then pass the result to the next command
+cat README.md | mq '.h' | mq-edit | mq 'downcase()'
+
+# Extract links, edit them, and save to a file
+cat README.md | mq '.link' | mq-edit > links.md
+
+# Transform markdown with mq, review and edit interactively, then write back
+mq '.[] | select(.h.depth > 1)' README.md | mq-edit > headings.md
+
+# Edit text from clipboard (macOS)
+pbpaste | mq-edit | pbcopy
+```
+
 ## Configuration
 
 `mq-edit` uses a TOML configuration file for customizing keybindings and LSP servers.

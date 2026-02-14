@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, IsTerminal, Read, Write};
 use std::time::Duration;
 
 use clap::{Parser, Subcommand};
@@ -58,18 +58,31 @@ fn main() -> Result<()> {
         }
     }
 
-    let mut app = if let Some(file_path) = cli.file {
+    let stdin_is_pipe = !io::stdin().is_terminal();
+    let stdout_is_pipe = !io::stdout().is_terminal();
+    let pipe_mode = stdin_is_pipe || stdout_is_pipe;
+
+    let mut app = if stdin_is_pipe {
+        let mut content = String::new();
+        io::stdin()
+            .read_to_string(&mut content)
+            .map_err(|e| miette::miette!("Failed to read from stdin: {}", e))?;
+        App::from_string(&content)?
+    } else if let Some(file_path) = cli.file {
         App::from_file(&file_path)?
     } else {
         App::new()
     };
 
+    app.set_pipe_mode(pipe_mode);
+
     // Setup terminal
+    // When stdout is piped, use stderr for TUI rendering
     enable_raw_mode().map_err(|e| miette::miette!("Failed to enable raw mode: {}", e))?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)
+    let mut stderr = io::stderr();
+    execute!(stderr, EnterAlternateScreen)
         .map_err(|e| miette::miette!("Failed to enter alternate screen: {}", e))?;
-    let backend = CrosstermBackend::new(stdout);
+    let backend = CrosstermBackend::new(stderr);
     let mut terminal =
         Terminal::new(backend).map_err(|e| miette::miette!("Failed to create terminal: {}", e))?;
 
@@ -86,6 +99,17 @@ fn main() -> Result<()> {
 
     if let Err(e) = res {
         eprintln!("Error: {}", e);
+    }
+
+    // In pipe mode, write the buffer content to stdout on exit
+    if pipe_mode {
+        let content = app.buffer().content();
+        io::stdout()
+            .write_all(content.as_bytes())
+            .map_err(|e| miette::miette!("Failed to write to stdout: {}", e))?;
+        io::stdout()
+            .flush()
+            .map_err(|e| miette::miette!("Failed to flush stdout: {}", e))?;
     }
 
     Ok(())
@@ -224,6 +248,7 @@ fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut A
                         .display_width_to_column(cursor.line, cursor.column);
                     let cursor_x = display_width as u16 + gutter_width;
                     let cursor_y = (cursor.line - app.scroll_offset()) as u16;
+
                     if cursor_y < editor_area.height {
                         f.set_cursor_position((editor_area.x + cursor_x, editor_area.y + cursor_y));
                     }

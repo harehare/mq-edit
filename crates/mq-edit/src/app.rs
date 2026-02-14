@@ -89,6 +89,8 @@ pub struct App {
     mq_query_input: String,
     /// mq query result (output or error message)
     mq_query_result: Option<String>,
+    /// Whether the app is running in pipe mode (stdin/stdout piped)
+    pipe_mode: bool,
 }
 
 impl App {
@@ -149,6 +151,7 @@ impl App {
             show_mq_query_dialog: false,
             mq_query_input: String::new(),
             mq_query_result: None,
+            pipe_mode: false,
         }
     }
 
@@ -227,6 +230,68 @@ impl App {
             show_mq_query_dialog: false,
             mq_query_input: String::new(),
             mq_query_result: None,
+            pipe_mode: false,
+        })
+    }
+
+    /// Create app from a string content (for pipe mode)
+    pub fn from_string(content: &str) -> Result<Self> {
+        let buffer = DocumentBuffer::from_string(content)?;
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let config = Config::load_or_default();
+        let mut image_manager = ImageManager::new();
+        image_manager.set_base_path(current_dir.clone());
+
+        let lsp_manager = Some(LspManager::new(
+            config.lsp_server_configs(),
+            current_dir.clone(),
+        ));
+
+        let show_line_numbers = config.editor.show_line_numbers;
+        let show_current_line_highlight = config.editor.show_current_line_highlight;
+        let mut code_renderer = CodeRenderer::with_theme(&config.editor.theme);
+        code_renderer.set_use_semantic_tokens(config.editor.use_semantic_tokens);
+
+        Ok(Self {
+            buffer,
+            should_quit: false,
+            scroll_offset: 0,
+            status_message: None,
+            file_tree: None,
+            show_file_browser: false,
+            current_dir,
+            config,
+            image_manager,
+            code_renderer,
+            lsp_manager,
+            diagnostics_manager: DiagnosticsManager::new(),
+            document_version: 0,
+            navigation_history: NavigationHistory::new(),
+            pending_definition_request: None,
+            completion_items: Vec::new(),
+            filtered_completion_items: Vec::new(),
+            completion_selected: 0,
+            show_completion: false,
+            completion_start_column: 0,
+            quit_confirm_pending: false,
+            show_quit_dialog: false,
+            show_line_numbers,
+            show_current_line_highlight,
+            show_search_dialog: false,
+            search_query: String::new(),
+            replace_query: String::new(),
+            search_mode: SearchMode::Find,
+            search_results: Vec::new(),
+            search_index: None,
+            search_active_field: SearchField::Search,
+            show_save_as_dialog: false,
+            save_as_filename: String::new(),
+            show_goto_line_dialog: false,
+            goto_line_input: String::new(),
+            show_mq_query_dialog: false,
+            mq_query_input: String::new(),
+            mq_query_result: None,
+            pipe_mode: false,
         })
     }
 
@@ -238,6 +303,11 @@ impl App {
     /// Get mutable document buffer
     pub fn buffer_mut(&mut self) -> &mut DocumentBuffer {
         &mut self.buffer
+    }
+
+    /// Set pipe mode (stdin/stdout piped)
+    pub fn set_pipe_mode(&mut self, pipe_mode: bool) {
+        self.pipe_mode = pipe_mode;
     }
 
     /// Check if the app should quit
@@ -1254,7 +1324,7 @@ impl App {
         if self.config.keybindings.quit.matches(&key)
             || self.config.keybindings.quit_alt.matches(&key)
         {
-            if self.buffer.is_modified() {
+            if self.buffer.is_modified() && !self.pipe_mode {
                 // Show quit confirmation dialog
                 self.show_quit_dialog = true;
                 self.set_status_message("Unsaved changes! Save before quitting?".to_string());

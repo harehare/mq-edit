@@ -395,13 +395,8 @@ impl Widget for EditorWidget<'_> {
                             // Try to get image dimensions and terminal support info
                             if let Some(img_mgr) = self.image_manager.as_ref() {
                                 let dimensions = img_mgr.get_dimensions(path).ok();
-                                let supports_images = img_mgr.supports_images();
-                                self.markdown_renderer.render_image_with_info(
-                                    alt_text,
-                                    path,
-                                    dimensions,
-                                    supports_images,
-                                )
+                                self.markdown_renderer
+                                    .render_image_with_info(alt_text, path, dimensions)
                             } else {
                                 self.markdown_renderer.render_line(
                                     self.buffer,

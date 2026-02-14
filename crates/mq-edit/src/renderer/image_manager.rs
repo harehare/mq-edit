@@ -1,5 +1,4 @@
 use image::DynamicImage;
-use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -10,19 +9,13 @@ pub struct ImageManager {
     cache: RefCell<HashMap<PathBuf, DynamicImage>>,
     /// Base path for resolving relative image paths
     base_path: Option<PathBuf>,
-    /// Terminal protocol picker (uses RefCell for interior mutability)
-    picker: RefCell<Option<Picker>>,
 }
 
 impl ImageManager {
     pub fn new() -> Self {
-        // Try to initialize picker, but don't fail if it doesn't work
-        let picker = Picker::from_termios().ok();
-
         Self {
             cache: RefCell::new(HashMap::new()),
             base_path: None,
-            picker: RefCell::new(picker),
         }
     }
 
@@ -76,25 +69,6 @@ impl ImageManager {
     /// Check if an image exists and can be loaded
     pub fn can_load_image(&self, path: &str) -> bool {
         self.load_image(path).is_ok()
-    }
-
-    /// Create a resized protocol for rendering
-    pub fn create_protocol(&self, path: &str) -> Result<Box<dyn StatefulProtocol>, String> {
-        // First, load the image
-        let img = self.load_image(path)?;
-
-        // Then get the picker
-        let mut picker = self.picker.borrow_mut();
-        let picker_ref = picker
-            .as_mut()
-            .ok_or_else(|| "Terminal protocol not supported".to_string())?;
-
-        Ok(picker_ref.new_resize_protocol(img))
-    }
-
-    /// Check if terminal supports image rendering
-    pub fn supports_images(&self) -> bool {
-        self.picker.borrow().is_some()
     }
 
     /// Clear the image cache

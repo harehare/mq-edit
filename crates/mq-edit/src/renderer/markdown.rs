@@ -286,7 +286,6 @@ impl MarkdownRenderer {
         alt_text: &str,
         path: &str,
         dimensions: Option<(u32, u32)>,
-        supports_images: bool,
     ) -> Vec<Span<'_>> {
         let mut spans = vec![
             Span::styled("🖼️  ", Style::default().fg(Color::Cyan)),
@@ -313,14 +312,6 @@ impl MarkdownRenderer {
                 .fg(Color::DarkGray)
                 .add_modifier(Modifier::UNDERLINED),
         ));
-
-        // Add terminal support indicator
-        if !supports_images {
-            spans.push(Span::styled(
-                " [terminal doesn't support image rendering]",
-                Style::default().fg(Color::Red),
-            ));
-        }
 
         spans
     }
