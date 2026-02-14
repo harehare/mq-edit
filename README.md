@@ -13,11 +13,40 @@ A terminal-based Markdown and code editor with WYSIWYG rendering and LSP support
 
 Built on top of the `mq-markdown` parser with full LSP capabilities.
 
-## Installation
+### Using the Installation Script (Recommended)
 
 ```bash
-# Latest Development Version
-cargo install --git https://github.com/harehare/mq-edit.git
+curl -fsSL https://raw.githubusercontent.com/harehare/mq-edit/main/bin/install.sh | bash
+```
+
+The installer will:
+- Download the latest release for your platform
+- Verify the binary with SHA256 checksum
+- Install to `~/.mq-edit/bin/`
+- Update your shell profile (bash, zsh, or fish)
+
+After installation, restart your terminal or run:
+
+```bash
+source ~/.bashrc  # or ~/.zshrc, or ~/.config/fish/config.fish
+```
+
+### Cargo
+
+```bash
+# Install from crates.io
+cargo install mq-edit
+# Install using binstall
+cargo binstall mq-edit@0.1.0
+```
+
+### From Source
+
+```bash
+git clone https://github.com/harehare/mq-edit.git
+cd mq-edit
+cargo build --release
+# Binary will be at target/release/mq-edit
 ```
 
 ## Usage
