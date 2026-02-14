@@ -17,18 +17,22 @@ Type "clear"
 Enter
 Show
 
-Type `mq-edit ../README.md`
+Type `cat ../README.md | mq-edit | mq -A '.h | first()'`
 Enter
 Sleep 1.5s
 
-Down 10
+Type `# Welcome to the demo of mq-edit!`
+Enter 2
+Sleep 1.5s
+
+Down 15
 Sleep 0.5s
 
 PageDown 2
 Sleep 0.5s
 
-Down 11
+Down 15
 Sleep 0.5s
 
-Type 'Welcome to the demo of mq-edit! '
-Sleep 3s
+Escape
+Sleep 2s
