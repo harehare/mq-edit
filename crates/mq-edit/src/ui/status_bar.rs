@@ -8,7 +8,7 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::document::DocumentBuffer;
-use md_lsp::DiagnosticsManager;
+use markdown_lsp::DiagnosticsManager;
 
 /// Status bar widget
 pub struct StatusBar<'a> {

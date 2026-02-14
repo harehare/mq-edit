@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use lsp_types::CompletionItem;
-use md_lsp::{DiagnosticsManager, LspEvent, LspManager};
+use markdown_lsp::{DiagnosticsManager, LspEvent, LspManager};
 use miette::Result;
 
 use crate::config::Config;

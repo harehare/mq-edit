@@ -1,4 +1,4 @@
-<h1 align="center"><code>mq-edit</code></h1>
+<h1 align="center">mq-edit</h1>
 
 A terminal-based Markdown and code editor with WYSIWYG rendering and LSP support.
 
