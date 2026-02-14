@@ -1,7 +1,14 @@
 [package]
+authors = ["Takahiro Sato <harehare1110@gmail.com>"]
+categories = ["command-line-utilities"]
+description = "A markdown editor for the terminal"
 edition = "2024"
+homepage = "https://mqlang.org/"
+keywords = ["markdown", "cli", "tui", "editor"]
+license = "MIT"
 name = "mq-edit"
-rust-version = "1.92.0"
+readme = "../../README.md"
+repository = "https://github.com/harehare/mq-edit"
 version = "0.1.0"
 
 [[bin]]
@@ -34,3 +41,4 @@ walkdir = "2.5"
 
 [dev-dependencies]
 tempfile = "3.24"
+
