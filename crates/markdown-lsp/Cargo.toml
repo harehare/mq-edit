@@ -7,7 +7,7 @@ homepage = "https://mqlang.org/"
 keywords = ["markdown", "cli", "tui", "editor"]
 license = "MIT"
 name = "markdown-lsp"
-readme = "../../README.md"
+readme = "README.md"
 repository = "https://github.com/harehare/mq-edit"
 version = "0.1.0"
 
