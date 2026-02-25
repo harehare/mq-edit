@@ -153,9 +153,8 @@ impl MarkdownLsp {
             }
         }
 
-        if !diagnostics.is_empty()
-            && let Ok(lsp_uri) = uri.parse::<LspUri>()
-        {
+        // Always send diagnostics event, even if empty (to clear previous diagnostics)
+        if let Ok(lsp_uri) = uri.parse::<LspUri>() {
             let _ =
                 self.event_tx
                     .send(LspEvent::Diagnostics(lsp_types::PublishDiagnosticsParams {

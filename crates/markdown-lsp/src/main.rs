@@ -71,7 +71,10 @@ fn main_loop(connection: &Connection, root_path: PathBuf) -> miette::Result<()> 
     for msg in &connection.receiver {
         match msg {
             Message::Request(req) => {
-                if connection.handle_shutdown(&req).map_err(|e| miette::miette!("{e}"))? {
+                if connection
+                    .handle_shutdown(&req)
+                    .map_err(|e| miette::miette!("{e}"))?
+                {
                     return Ok(());
                 }
                 handle_request(&mut lsp, &event_rx, connection, req)?;
@@ -164,9 +167,8 @@ fn handle_notification(
 ) -> miette::Result<()> {
     match notif.method.as_str() {
         DidOpenTextDocument::METHOD => {
-            let params: lsp_types::DidOpenTextDocumentParams =
-                serde_json::from_value(notif.params)
-                    .map_err(|e| miette::miette!("Failed to parse didOpen params: {e}"))?;
+            let params: lsp_types::DidOpenTextDocumentParams = serde_json::from_value(notif.params)
+                .map_err(|e| miette::miette!("Failed to parse didOpen params: {e}"))?;
             let file_path = uri_to_path(&params.text_document.uri);
 
             lsp.did_open(&file_path, &params.text_document.text).ok();

@@ -63,7 +63,7 @@ impl Default for LspConfig {
                 args: vec![],
                 embedded: true,
                 enable_completion: true,
-                enable_diagnostics: false,
+                enable_diagnostics: true,
                 enable_goto_definition: true,
             },
         );
