@@ -9,7 +9,7 @@ license = "MIT"
 name = "mq-edit"
 readme = "../../README.md"
 repository = "https://github.com/harehare/mq-edit"
-version = "0.1.0"
+version = "0.1.1"
 
 [[bin]]
 name = "mq-edit"
