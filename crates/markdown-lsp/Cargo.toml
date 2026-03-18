@@ -9,7 +9,7 @@ license = "MIT"
 name = "markdown-lsp"
 readme = "README.md"
 repository = "https://github.com/harehare/mq-edit"
-version = "0.1.3"
+version = "0.1.4"
 
 [[bin]]
 name = "markdown-lsp"
