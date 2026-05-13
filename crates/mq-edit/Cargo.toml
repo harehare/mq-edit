@@ -9,7 +9,8 @@ license = "MIT"
 name = "mq-edit"
 readme = "../../README.md"
 repository = "https://github.com/harehare/mq-edit"
-version = "0.1.5"
+version = "0.1.6"
+default-run = "mq-edit"
 
 [[bin]]
 name = "mq-edit"
@@ -26,7 +27,7 @@ lsp-types = "0.97"
 markdown-lsp = {version = "0.1.1", path = "../markdown-lsp"}
 miette = {version = "7.6", features = ["fancy"]}
 mq-lang = "0.5.26"
-mq-markdown = "0.5.26"
+mq-markdown = "0.5.29"
 plist = "1.7"
 ratatui = "0.30"
 serde = {version = "1.0", features = ["derive"]}
@@ -41,3 +42,4 @@ walkdir = "2.5"
 
 [dev-dependencies]
 tempfile = "3.24"
+

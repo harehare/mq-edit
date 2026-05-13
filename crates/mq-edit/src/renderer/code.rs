@@ -13,6 +13,7 @@ use syntect::{
 
 use super::Renderer;
 use crate::document::DocumentBuffer;
+use crate::theme;
 
 /// Semantic token information from LSP
 #[derive(Debug, Clone)]
@@ -86,9 +87,17 @@ pub struct CodeRenderer {
 /// Embedded mq language syntax definition (sublime-syntax format)
 const MQ_SUBLIME_SYNTAX: &str = include_str!("../../mq.sublime-syntax");
 
+/// Embedded tarn theme (tmTheme plist format)
+const TARN_TMTHEME: &[u8] = include_bytes!("../../../../assets/tarn.tmTheme");
+
+/// Load the embedded tarn theme
+fn load_tarn_theme() -> Theme {
+    plist::from_bytes(TARN_TMTHEME).unwrap_or_default()
+}
+
 impl CodeRenderer {
     pub fn new() -> Self {
-        Self::with_theme("base16-ocean.dark")
+        Self::with_theme("tarn")
     }
 
     /// Create a new code renderer with specified theme
@@ -96,13 +105,15 @@ impl CodeRenderer {
         let default_syntax_set = SyntaxSet::load_defaults_newlines();
         let mq_syntax_set = Self::build_mq_syntax_set();
         let theme_set = ThemeSet::load_defaults();
-        let theme = theme_set
-            .themes
-            .get(theme_name)
-            .or_else(|| theme_set.themes.get("base16-ocean.dark"))
-            .or_else(|| theme_set.themes.values().next())
-            .cloned()
-            .unwrap_or_default();
+        let theme = if theme_name == "tarn" {
+            load_tarn_theme()
+        } else {
+            theme_set
+                .themes
+                .get(theme_name)
+                .cloned()
+                .unwrap_or_else(load_tarn_theme)
+        };
 
         Self {
             default_syntax_set,
@@ -116,7 +127,9 @@ impl CodeRenderer {
 
     /// Set the theme by name
     pub fn set_theme(&mut self, theme_name: &str) {
-        if let Some(theme) = self.theme_set.themes.get(theme_name) {
+        if theme_name == "tarn" {
+            self.theme = load_tarn_theme();
+        } else if let Some(theme) = self.theme_set.themes.get(theme_name) {
             self.theme = theme.clone();
         }
     }
@@ -125,6 +138,7 @@ impl CodeRenderer {
     pub fn available_themes() -> Vec<String> {
         let theme_set = ThemeSet::load_defaults();
         let mut themes: Vec<String> = theme_set.themes.keys().cloned().collect();
+        themes.push("tarn".to_string());
         themes.sort();
         themes
     }
@@ -221,25 +235,25 @@ impl CodeRenderer {
         // Map LSP semantic token types to colors
         // See: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_semanticTokens
         match token_type {
-            0 => Style::default().fg(Color::Cyan),     // namespace
-            1 => Style::default().fg(Color::Yellow),   // type
-            2 => Style::default().fg(Color::Yellow),   // class
-            3 => Style::default().fg(Color::Yellow),   // enum
-            4 => Style::default().fg(Color::Cyan),     // interface
-            5 => Style::default().fg(Color::Yellow),   // struct
-            6 => Style::default().fg(Color::Magenta),  // typeParameter
-            7 => Style::default().fg(Color::White),    // parameter
-            8 => Style::default().fg(Color::White),    // variable
-            9 => Style::default().fg(Color::Cyan),     // property
-            10 => Style::default().fg(Color::Green),   // enumMember
-            11 => Style::default().fg(Color::Blue),    // function
-            12 => Style::default().fg(Color::Blue),    // method
-            13 => Style::default().fg(Color::Magenta), // macro
-            14 => Style::default().fg(Color::Magenta), // keyword
-            15 => Style::default().fg(Color::Gray),    // comment
-            16 => Style::default().fg(Color::Green),   // string
-            17 => Style::default().fg(Color::Green),   // number
-            18 => Style::default().fg(Color::Magenta), // operator
+            0 => Style::default().fg(theme::FUNC),      // namespace
+            1 => Style::default().fg(theme::ACCENT),    // type
+            2 => Style::default().fg(theme::ACCENT),    // class
+            3 => Style::default().fg(theme::ACCENT),    // enum
+            4 => Style::default().fg(theme::FUNC),      // interface
+            5 => Style::default().fg(theme::ACCENT),    // struct
+            6 => Style::default().fg(theme::ESCAPE),    // typeParameter
+            7 => Style::default().fg(theme::VARIABLE),  // parameter
+            8 => Style::default().fg(theme::VARIABLE),  // variable
+            9 => Style::default().fg(theme::ESCAPE),    // property
+            10 => Style::default().fg(theme::CONSTANT), // enumMember
+            11 => Style::default().fg(theme::FUNC),     // function
+            12 => Style::default().fg(theme::FUNC),     // method
+            13 => Style::default().fg(theme::ESCAPE),   // macro
+            14 => Style::default().fg(theme::ACCENT),   // keyword
+            15 => Style::default().fg(theme::COMMENT),  // comment
+            16 => Style::default().fg(theme::STRING),   // string
+            17 => Style::default().fg(theme::NUMBER),   // number
+            18 => Style::default().fg(theme::OPERATOR), // operator
             _ => Style::default(),
         }
     }

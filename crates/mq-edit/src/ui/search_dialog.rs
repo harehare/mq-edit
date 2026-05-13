@@ -1,10 +1,12 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Widget},
 };
+
+use crate::theme;
 
 /// Search mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,13 +75,13 @@ impl<'a> SearchDialog<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) {
-        let label_style = Style::default().fg(Color::Cyan);
+        let label_style = Style::default().fg(theme::ACCENT);
         let input_bg = if is_active {
-            Color::DarkGray
+            theme::BG_SEL
         } else {
-            Color::Black
+            theme::BG_DARK
         };
-        let input_style = Style::default().fg(Color::White).bg(input_bg);
+        let input_style = Style::default().fg(theme::FG).bg(input_bg);
 
         // Split area for label and input with padding
         let chunks = Layout::horizontal([
@@ -128,8 +130,8 @@ impl Widget for SearchDialog<'_> {
             .title(title)
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .style(Style::default().bg(Color::Black));
+            .border_style(Style::default().fg(theme::ACCENT))
+            .style(Style::default().bg(theme::BG));
 
         let inner_area = block.inner(dialog_area);
         block.render(dialog_area, buf);
@@ -198,7 +200,7 @@ impl Widget for SearchDialog<'_> {
 
         if !match_info.is_empty() {
             let match_para = Paragraph::new(match_info)
-                .style(Style::default().fg(Color::Yellow))
+                .style(Style::default().fg(theme::WARNING))
                 .alignment(Alignment::Center);
             match_para.render(match_chunk, buf);
         }
@@ -209,34 +211,34 @@ impl Widget for SearchDialog<'_> {
                 Span::styled(
                     "Enter",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Next  "),
                 Span::styled(
                     "Tab",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Switch  "),
                 Span::styled(
                     "^R",
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(theme::SUCCESS)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Replace  "),
                 Span::styled(
                     "^A",
                     Style::default()
-                        .fg(Color::Magenta)
+                        .fg(theme::ESCAPE)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" All  "),
                 Span::styled(
                     "Esc",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default().fg(theme::ERROR).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Close"),
             ])
@@ -245,27 +247,27 @@ impl Widget for SearchDialog<'_> {
                 Span::styled(
                     "Enter",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Next  "),
                 Span::styled(
                     "Shift+Enter",
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Prev  "),
                 Span::styled(
                     "Esc",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    Style::default().fg(theme::ERROR).add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Close"),
             ])
         };
 
         let hints_para = Paragraph::new(hints)
-            .style(Style::default().fg(Color::DarkGray))
+            .style(Style::default().fg(theme::FG_DIM))
             .alignment(Alignment::Center);
         hints_para.render(hints_chunk, buf);
     }

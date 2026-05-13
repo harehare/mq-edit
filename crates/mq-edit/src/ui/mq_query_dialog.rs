@@ -1,10 +1,12 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Widget},
 };
+
+use crate::theme;
 
 /// mq query execution dialog widget
 pub struct MqQueryDialog<'a> {
@@ -40,8 +42,8 @@ impl Widget for MqQueryDialog<'_> {
             .title(" mq ")
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Magenta))
-            .style(Style::default().bg(Color::Black));
+            .border_style(Style::default().fg(theme::ESCAPE))
+            .style(Style::default().bg(theme::BG));
 
         let inner_area = block.inner(dialog_area);
         block.render(dialog_area, buf);
@@ -84,19 +86,19 @@ impl MqQueryDialog<'_> {
         ])
         .split(area);
 
-        let icon = Paragraph::new("> ").style(Style::default().fg(Color::Magenta));
+        let icon = Paragraph::new("> ").style(Style::default().fg(theme::ESCAPE));
         icon.render(chunks[1], buf);
 
         // Fill input area with background
         for x in chunks[2].x..chunks[2].x + chunks[2].width {
-            buf[(x, chunks[2].y)].set_bg(Color::DarkGray).set_char(' ');
+            buf[(x, chunks[2].y)].set_bg(theme::BG_PANEL).set_char(' ');
         }
 
         let display_query = format!("{}_", self.query);
         let input = Paragraph::new(display_query).style(
             Style::default()
-                .fg(Color::White)
-                .bg(Color::DarkGray)
+                .fg(theme::FG)
+                .bg(theme::BG_PANEL)
                 .add_modifier(Modifier::BOLD),
         );
         input.render(chunks[2], buf);
@@ -104,9 +106,9 @@ impl MqQueryDialog<'_> {
         // Inline hints when no result shown
         if self.result.is_none() {
             let hints = Line::from(vec![
-                Span::styled("Enter", Style::default().fg(Color::DarkGray)),
+                Span::styled("Enter", Style::default().fg(theme::FG_DIM)),
                 Span::raw(" "),
-                Span::styled("Esc", Style::default().fg(Color::DarkGray)),
+                Span::styled("Esc", Style::default().fg(theme::FG_DIM)),
             ]);
             Paragraph::new(hints).render(chunks[4], buf);
         }
@@ -123,9 +125,9 @@ impl MqQueryDialog<'_> {
 
             let is_error = result.starts_with("Error:");
             let style = if is_error {
-                Style::default().fg(Color::Red)
+                Style::default().fg(theme::ERROR)
             } else {
-                Style::default().fg(Color::Green)
+                Style::default().fg(theme::SUCCESS)
             };
 
             Paragraph::new(result).style(style).render(chunks[1], buf);
@@ -137,19 +139,19 @@ impl MqQueryDialog<'_> {
             Span::styled(
                 "Enter",
                 Style::default()
-                    .fg(Color::Cyan)
+                    .fg(theme::ACCENT)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Run  "),
             Span::styled(
                 "Esc",
-                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                Style::default().fg(theme::ERROR).add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Close"),
         ]);
         Paragraph::new(hints)
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray))
+            .style(Style::default().fg(theme::FG_DIM))
             .render(area, buf);
     }
 }

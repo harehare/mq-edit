@@ -1,13 +1,14 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Style},
+    style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Widget},
 };
 
 use crate::document::{DocumentBuffer, LineAnalyzer, LineType, TableAlignment};
 use crate::renderer::{CodeRenderer, ImageManager, MarkdownRenderer, Renderer};
+use crate::theme;
 use markdown_lsp::DiagnosticsManager;
 
 /// Table rendering context
@@ -96,18 +97,18 @@ impl<'a> EditorWidget<'a> {
         {
             let marker = match diagnostic.severity {
                 Some(lsp_types::DiagnosticSeverity::ERROR) => {
-                    Span::styled(" ❌".to_string(), Style::default().fg(Color::Red))
+                    Span::styled(" ❌".to_string(), Style::default().fg(theme::ERROR))
                 }
                 Some(lsp_types::DiagnosticSeverity::WARNING) => {
-                    Span::styled(" ⚠️ ".to_string(), Style::default().fg(Color::Yellow))
+                    Span::styled(" ⚠️ ".to_string(), Style::default().fg(theme::WARNING))
                 }
                 Some(lsp_types::DiagnosticSeverity::INFORMATION) => {
-                    Span::styled(" ℹ️ ".to_string(), Style::default().fg(Color::Blue))
+                    Span::styled(" ℹ️ ".to_string(), Style::default().fg(theme::ACCENT))
                 }
                 Some(lsp_types::DiagnosticSeverity::HINT) => {
-                    Span::styled(" 💡".to_string(), Style::default().fg(Color::Cyan))
+                    Span::styled(" 💡".to_string(), Style::default().fg(theme::SUCCESS))
                 }
-                _ => Span::styled(" ⚠️ ".to_string(), Style::default().fg(Color::Yellow)),
+                _ => Span::styled(" ⚠️ ".to_string(), Style::default().fg(theme::WARNING)),
             };
             spans.push(marker);
         }
@@ -124,9 +125,9 @@ impl<'a> EditorWidget<'a> {
         let line_num = line_idx + 1; // 1-indexed display
         let formatted = format!("{:>width$} │ ", line_num, width = width);
         let style = if is_current {
-            Style::default().fg(Color::Yellow)
+            Style::default().fg(theme::ACCENT).bg(theme::BG_PANEL)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(theme::BORDER)
         };
         Span::styled(formatted, style)
     }
@@ -241,7 +242,7 @@ impl Widget for EditorWidget<'_> {
                 spans = self.add_diagnostic_marker(spans, line_idx);
 
                 if is_current && self.show_current_line_highlight {
-                    lines.push(Line::from(spans).style(Style::default().bg(Color::DarkGray)));
+                    lines.push(Line::from(spans).style(Style::default().bg(theme::BG_PANEL)));
                 } else {
                     lines.push(Line::from(spans));
                 }
@@ -292,7 +293,7 @@ impl Widget for EditorWidget<'_> {
                         base_spans = self.add_diagnostic_marker(base_spans, line_idx);
 
                         lines.push(if is_current && self.show_current_line_highlight {
-                            Line::from(base_spans).style(Style::default().bg(Color::DarkGray))
+                            Line::from(base_spans).style(Style::default().bg(theme::BG_PANEL))
                         } else {
                             Line::from(base_spans)
                         });
@@ -311,7 +312,7 @@ impl Widget for EditorWidget<'_> {
                         base_spans = self.add_diagnostic_marker(base_spans, line_idx);
 
                         lines.push(if is_current && self.show_current_line_highlight {
-                            Line::from(base_spans).style(Style::default().bg(Color::DarkGray))
+                            Line::from(base_spans).style(Style::default().bg(theme::BG_PANEL))
                         } else {
                             Line::from(base_spans)
                         });
@@ -362,7 +363,7 @@ impl Widget for EditorWidget<'_> {
 
                     if is_current && self.show_current_line_highlight {
                         lines.push(
-                            Line::from(base_spans).style(Style::default().bg(Color::DarkGray)),
+                            Line::from(base_spans).style(Style::default().bg(theme::BG_PANEL)),
                         );
                     } else {
                         lines.push(Line::from(base_spans));
@@ -419,7 +420,7 @@ impl Widget for EditorWidget<'_> {
 
                     if is_current && self.show_current_line_highlight {
                         lines.push(
-                            Line::from(base_spans).style(Style::default().bg(Color::DarkGray)),
+                            Line::from(base_spans).style(Style::default().bg(theme::BG_PANEL)),
                         );
                     } else {
                         lines.push(Line::from(base_spans));
@@ -430,7 +431,7 @@ impl Widget for EditorWidget<'_> {
 
         let paragraph = Paragraph::new(lines)
             .block(Block::default().borders(Borders::NONE))
-            .style(Style::default().fg(Color::White).bg(Color::Black));
+            .style(Style::default().fg(theme::FG).bg(theme::BG));
 
         paragraph.render(area, buf);
     }

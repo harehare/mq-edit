@@ -2,10 +2,12 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Widget},
 };
+
+use crate::theme;
 use std::path::{Path, PathBuf};
 
 /// Represents an item in the file tree
@@ -246,13 +248,13 @@ impl Widget for FileBrowserWidget<'_> {
 
                 let style = if idx == self.tree.selected_index() {
                     Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::Cyan)
+                        .fg(theme::BG)
+                        .bg(theme::ACCENT)
                         .add_modifier(Modifier::BOLD)
                 } else if item.is_dir {
-                    Style::default().fg(Color::Blue)
+                    Style::default().fg(theme::ACCENT)
                 } else {
-                    Style::default().fg(Color::White)
+                    Style::default().fg(theme::FG)
                 };
 
                 let content = format!("{}{}{}", indent, icon, item.name);
@@ -265,9 +267,9 @@ impl Widget for FileBrowserWidget<'_> {
                 Block::default()
                     .borders(Borders::ALL)
                     .title(self.title)
-                    .border_style(Style::default().fg(Color::Gray)),
+                    .border_style(Style::default().fg(theme::BORDER)),
             )
-            .style(Style::default().fg(Color::White).bg(Color::Black));
+            .style(Style::default().fg(theme::FG).bg(theme::BG));
 
         list.render(area, buf);
     }

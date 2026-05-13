@@ -1,13 +1,14 @@
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style, Stylize},
+    style::{Modifier, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
 };
 use unicode_width::UnicodeWidthStr;
 
 use crate::document::DocumentBuffer;
+use crate::theme;
 use markdown_lsp::DiagnosticsManager;
 
 /// Status bar widget
@@ -44,11 +45,11 @@ impl Widget for StatusBar<'_> {
             let warning_line = Line::from(vec![Span::styled(
                 format!(" ⚠ {} ", warning),
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .fg(theme::BG)
+                    .bg(theme::WARNING)
                     .add_modifier(Modifier::BOLD),
             )]);
-            let paragraph = Paragraph::new(warning_line).block(Block::default().bg(Color::Yellow));
+            let paragraph = Paragraph::new(warning_line).block(Block::default().bg(theme::WARNING));
             paragraph.render(area, buf);
             return;
         }
@@ -85,8 +86,8 @@ impl Widget for StatusBar<'_> {
         let mut spans = vec![Span::styled(
             file_section.clone(),
             Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan)
+                .fg(theme::BG)
+                .bg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
         )];
 
@@ -118,7 +119,7 @@ impl Widget for StatusBar<'_> {
 
         spans.push(Span::styled(
             " ".repeat(padding),
-            Style::default().bg(Color::DarkGray),
+            Style::default().bg(theme::BG_PANEL),
         ));
 
         // Add diagnostics with color coding
@@ -126,8 +127,8 @@ impl Widget for StatusBar<'_> {
             spans.push(Span::styled(
                 error_text,
                 Style::default()
-                    .fg(Color::White)
-                    .bg(Color::Red)
+                    .fg(theme::FG)
+                    .bg(theme::ERROR)
                     .add_modifier(Modifier::BOLD),
             ));
         }
@@ -135,36 +136,36 @@ impl Widget for StatusBar<'_> {
             spans.push(Span::styled(
                 warning_text,
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Yellow)
+                    .fg(theme::BG)
+                    .bg(theme::WARNING)
                     .add_modifier(Modifier::BOLD),
             ));
         }
         if has_diagnostics {
             spans.push(Span::styled(
                 separator,
-                Style::default().fg(Color::Gray).bg(Color::DarkGray),
+                Style::default().fg(theme::FG_MUTED).bg(theme::BG_PANEL),
             ));
         }
 
         spans.push(Span::styled(
             line_count,
-            Style::default().fg(Color::White).bg(Color::DarkGray),
+            Style::default().fg(theme::FG).bg(theme::BG_PANEL),
         ));
 
         spans.push(Span::styled(
             separator,
-            Style::default().fg(Color::Gray).bg(Color::DarkGray),
+            Style::default().fg(theme::FG_MUTED).bg(theme::BG_PANEL),
         ));
 
         spans.push(Span::styled(
             position,
-            Style::default().fg(Color::Black).bg(Color::Cyan),
+            Style::default().fg(theme::BG).bg(theme::ACCENT),
         ));
 
         let status_line = Line::from(spans);
 
-        let paragraph = Paragraph::new(status_line).block(Block::default().bg(Color::DarkGray));
+        let paragraph = Paragraph::new(status_line).block(Block::default().bg(theme::BG_PANEL));
         paragraph.render(area, buf);
     }
 }

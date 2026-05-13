@@ -2,10 +2,12 @@ use lsp_types::CompletionItem;
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Widget},
 };
+
+use crate::theme;
 
 /// Completion popup widget for displaying code completion suggestions
 pub struct CompletionPopup<'a> {
@@ -71,24 +73,24 @@ impl Widget for CompletionPopup<'_> {
                         Span::styled(
                             format!("> {:37} ", label),
                             Style::default()
-                                .fg(Color::Black)
-                                .bg(Color::Cyan)
+                                .fg(theme::BG)
+                                .bg(theme::ACCENT)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled(
                             kind_text,
-                            Style::default().fg(Color::DarkGray).bg(Color::Cyan),
+                            Style::default().fg(theme::FG_DIM).bg(theme::ACCENT),
                         ),
                     ])
                 } else {
                     Line::from(vec![
                         Span::styled(
                             format!("  {:37} ", label),
-                            Style::default().fg(Color::White).bg(Color::Black),
+                            Style::default().fg(theme::FG).bg(theme::BG_DARK),
                         ),
                         Span::styled(
                             kind_text,
-                            Style::default().fg(Color::DarkGray).bg(Color::Black),
+                            Style::default().fg(theme::FG_DIM).bg(theme::BG_DARK),
                         ),
                     ])
                 };
@@ -100,7 +102,7 @@ impl Widget for CompletionPopup<'_> {
         while visible_items.len() < visible_height {
             visible_items.push(ListItem::new(Line::from(vec![Span::styled(
                 " ".repeat(40),
-                Style::default().bg(Color::Black),
+                Style::default().bg(theme::BG_DARK),
             )])));
         }
 
@@ -118,10 +120,10 @@ impl Widget for CompletionPopup<'_> {
                 Block::default()
                     .title(title)
                     .borders(Borders::ALL)
-                    .style(Style::default().bg(Color::Black).fg(Color::White))
-                    .border_style(Style::default().fg(Color::Cyan)),
+                    .style(Style::default().bg(theme::BG_DARK).fg(theme::FG))
+                    .border_style(Style::default().fg(theme::ACCENT)),
             )
-            .style(Style::default().bg(Color::Black).fg(Color::White));
+            .style(Style::default().bg(theme::BG_DARK).fg(theme::FG));
 
         list.render(area, buf);
     }

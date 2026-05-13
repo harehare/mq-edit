@@ -1,10 +1,11 @@
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::Span,
 };
 
 use super::Renderer;
 use crate::document::{DocumentBuffer, LineType, TableAlignment};
+use crate::theme;
 
 /// Markdown renderer for rich text display
 pub struct MarkdownRenderer {
@@ -27,24 +28,24 @@ impl MarkdownRenderer {
     pub fn new() -> Self {
         Self {
             heading1_style: Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
             heading2_style: Style::default()
-                .fg(Color::Blue)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
             heading3_style: Style::default()
-                .fg(Color::Magenta)
+                .fg(theme::ESCAPE)
                 .add_modifier(Modifier::BOLD),
             heading4_style: Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD),
             heading_other_style: Style::default().add_modifier(Modifier::BOLD),
-            code_block_style: Style::default().fg(Color::Green),
-            quote_style: Style::default().fg(Color::Gray),
-            quote_border_style: Style::default().fg(Color::DarkGray),
-            table_border_style: Style::default().fg(Color::DarkGray),
+            code_block_style: Style::default().fg(theme::STRING),
+            quote_style: Style::default().fg(theme::FG_MUTED),
+            quote_border_style: Style::default().fg(theme::BORDER),
+            table_border_style: Style::default().fg(theme::BORDER),
             table_header_style: Style::default()
-                .fg(Color::Cyan)
+                .fg(theme::ACCENT)
                 .add_modifier(Modifier::BOLD),
             table_cell_style: Style::default(),
         }
@@ -78,7 +79,7 @@ impl MarkdownRenderer {
             LineType::InCode => self.render_code_content(content),
             LineType::HorizontalRule => vec![Span::styled(
                 "─".repeat(80),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme::BORDER),
             )],
             LineType::Image(alt_text, path) => self.render_image(alt_text, path),
             LineType::TableHeader(cells) => {
@@ -139,11 +140,11 @@ impl MarkdownRenderer {
 
         // Add background color for headers - matching the text color tone
         let bg_color = match level {
-            1 => Color::Rgb(0, 60, 80),  // Dark cyan matching Cyan text
-            2 => Color::Rgb(0, 40, 100), // Dark blue matching Blue text
-            3 => Color::Rgb(60, 0, 80),  // Dark magenta matching Magenta text
-            4 => Color::Rgb(80, 60, 0),  // Dark yellow matching Yellow text
-            _ => Color::Rgb(40, 40, 40), // Dark gray for others
+            1 => theme::H1_BG,
+            2 => theme::H2_BG,
+            3 => theme::H3_BG,
+            4 => theme::H4_BG,
+            _ => theme::H_OTHER_BG,
         };
         let style_with_bg = style.bg(bg_color);
 
@@ -208,7 +209,7 @@ impl MarkdownRenderer {
 
         vec![
             Span::raw(indent),
-            Span::styled(bullet, Style::default().fg(Color::Yellow)),
+            Span::styled(bullet, Style::default().fg(theme::ACCENT)),
             Span::raw(text.to_string()),
         ]
     }
@@ -227,12 +228,12 @@ impl MarkdownRenderer {
         if let Some(lang) = lang {
             vec![Span::styled(
                 format!("╭─ {} ─╮", lang),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme::BORDER),
             )]
         } else {
             vec![Span::styled(
                 "╭─ code ─╮",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme::BORDER),
             )]
         }
     }
@@ -245,12 +246,12 @@ impl MarkdownRenderer {
                     "╭─ {} ─────────────────────────────────────────────────────",
                     lang
                 ),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme::BORDER),
             )]
         } else {
             vec![Span::styled(
                 "╭─ code ────────────────────────────────────────────────────",
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(theme::BORDER),
             )]
         }
     }
@@ -259,7 +260,7 @@ impl MarkdownRenderer {
     pub fn render_code_fence_end(&self) -> Vec<Span<'_>> {
         vec![Span::styled(
             "╰────────────────────────────────────────────────────────────",
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(theme::BORDER),
         )]
     }
 
@@ -288,11 +289,11 @@ impl MarkdownRenderer {
         dimensions: Option<(u32, u32)>,
     ) -> Vec<Span<'_>> {
         let mut spans = vec![
-            Span::styled("🖼️  ", Style::default().fg(Color::Cyan)),
+            Span::styled("🖼️  ", Style::default().fg(theme::ACCENT)),
             Span::styled(
                 format!("[{}]", alt_text),
                 Style::default()
-                    .fg(Color::Blue)
+                    .fg(theme::FUNC)
                     .add_modifier(Modifier::ITALIC),
             ),
             Span::styled(" ", Style::default()),
@@ -302,14 +303,14 @@ impl MarkdownRenderer {
         if let Some((width, height)) = dimensions {
             spans.push(Span::styled(
                 format!("{}x{} ", width, height),
-                Style::default().fg(Color::Yellow),
+                Style::default().fg(theme::NUMBER),
             ));
         }
 
         spans.push(Span::styled(
             path.to_string(),
             Style::default()
-                .fg(Color::DarkGray)
+                .fg(theme::FG_DIM)
                 .add_modifier(Modifier::UNDERLINED),
         ));
 
@@ -319,18 +320,18 @@ impl MarkdownRenderer {
     /// Render image placeholder (basic version for backwards compatibility)
     fn render_image(&self, alt_text: &str, path: &str) -> Vec<Span<'_>> {
         vec![
-            Span::styled("🖼️  ", Style::default().fg(Color::Cyan)),
+            Span::styled("🖼️  ", Style::default().fg(theme::ACCENT)),
             Span::styled(
                 format!("[{}]", alt_text),
                 Style::default()
-                    .fg(Color::Blue)
+                    .fg(theme::FUNC)
                     .add_modifier(Modifier::ITALIC),
             ),
             Span::styled(" ", Style::default()),
             Span::styled(
                 path.to_string(),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(theme::FG_DIM)
                     .add_modifier(Modifier::UNDERLINED),
             ),
         ]
@@ -468,7 +469,7 @@ impl MarkdownRenderer {
     fn render_front_matter_delimiter(&self) -> Vec<Span<'_>> {
         vec![Span::styled(
             "─".repeat(60),
-            Style::default().fg(Color::Rgb(100, 100, 150)),
+            Style::default().fg(theme::BORDER),
         )]
     }
 
@@ -486,33 +487,33 @@ impl MarkdownRenderer {
                 Span::styled(
                     key.to_string(),
                     Style::default()
-                        .fg(Color::Rgb(150, 180, 200))
+                        .fg(theme::VARIABLE)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     value.to_string(),
-                    Style::default().fg(Color::Rgb(200, 200, 220)),
+                    Style::default().fg(theme::FG),
                 ),
             ]
         } else if trimmed.starts_with('-') {
             // YAML list item
             vec![Span::styled(
                 content.to_string(),
-                Style::default().fg(Color::Rgb(180, 180, 200)),
+                Style::default().fg(theme::FG_MUTED),
             )]
         } else if trimmed.starts_with('#') {
             // YAML comment
             vec![Span::styled(
                 content.to_string(),
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(theme::COMMENT)
                     .add_modifier(Modifier::ITALIC),
             )]
         } else {
             // Default front matter style
             vec![Span::styled(
                 content.to_string(),
-                Style::default().fg(Color::Rgb(180, 180, 200)),
+                Style::default().fg(theme::FG_MUTED),
             )]
         }
     }

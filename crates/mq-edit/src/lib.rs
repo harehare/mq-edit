@@ -5,6 +5,7 @@ pub mod editor;
 pub mod file;
 pub mod navigation;
 pub mod renderer;
+pub mod theme;
 pub mod ui;
 
 pub use app::App;

@@ -1,10 +1,12 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Alignment, Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph, Widget},
 };
+
+use crate::theme;
 
 /// Quit confirmation dialog widget
 pub struct QuitDialog;
@@ -38,8 +40,8 @@ impl Widget for QuitDialog {
             .title(" Unsaved Changes ")
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Yellow))
-            .style(Style::default().bg(Color::Black));
+            .border_style(Style::default().fg(theme::WARNING))
+            .style(Style::default().bg(theme::BG));
 
         let inner_area = block.inner(dialog_area);
         block.render(dialog_area, buf);
@@ -56,7 +58,7 @@ impl Widget for QuitDialog {
         // Warning message
         let message = Paragraph::new("You have unsaved changes. Quit anyway?")
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::White));
+            .style(Style::default().fg(theme::FG));
         message.render(chunks[1], buf);
 
         // Button hints
@@ -64,16 +66,16 @@ impl Widget for QuitDialog {
             Span::styled(
                 " [Y] ",
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Red)
+                    .fg(theme::BG)
+                    .bg(theme::ERROR)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Quit  "),
             Span::styled(
                 " [N] ",
                 Style::default()
-                    .fg(Color::Black)
-                    .bg(Color::Green)
+                    .fg(theme::BG)
+                    .bg(theme::SUCCESS)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Cancel "),
@@ -123,8 +125,8 @@ impl<'a> Widget for SaveAsDialog<'a> {
             .title(" Save As ")
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .style(Style::default().bg(Color::Black));
+            .border_style(Style::default().fg(theme::ACCENT))
+            .style(Style::default().bg(theme::BG));
 
         let inner_area = block.inner(dialog_area);
         block.render(dialog_area, buf);
@@ -139,13 +141,13 @@ impl<'a> Widget for SaveAsDialog<'a> {
         .split(inner_area);
 
         // Prompt
-        let prompt = Paragraph::new("Enter filename:").style(Style::default().fg(Color::White));
+        let prompt = Paragraph::new("Enter filename:").style(Style::default().fg(theme::FG));
         prompt.render(chunks[1], buf);
 
         // Input field with current filename
         let input = Paragraph::new(self.filename).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD),
         );
         input.render(chunks[2], buf);
@@ -153,7 +155,7 @@ impl<'a> Widget for SaveAsDialog<'a> {
         // Hint
         let hint = Paragraph::new("Press Enter to save, Esc to cancel")
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+            .style(Style::default().fg(theme::FG_DIM));
         hint.render(chunks[3], buf);
     }
 }
@@ -198,8 +200,8 @@ impl<'a> Widget for GotoLineDialog<'a> {
             .title(" Go to Line ")
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .style(Style::default().bg(Color::Black));
+            .border_style(Style::default().fg(theme::ACCENT))
+            .style(Style::default().bg(theme::BG));
 
         let inner_area = block.inner(dialog_area);
         block.render(dialog_area, buf);
@@ -221,17 +223,17 @@ impl<'a> Widget for GotoLineDialog<'a> {
             self.total_lines
         ))
         .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::DarkGray));
+        .style(Style::default().fg(theme::FG_DIM));
         info.render(chunks[1], buf);
 
         // Prompt
-        let prompt = Paragraph::new("Enter line number:").style(Style::default().fg(Color::White));
+        let prompt = Paragraph::new("Enter line number:").style(Style::default().fg(theme::FG));
         prompt.render(chunks[2], buf);
 
         // Input field with current input
         let input = Paragraph::new(self.line_number).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme::WARNING)
                 .add_modifier(Modifier::BOLD),
         );
         input.render(chunks[3], buf);
@@ -239,7 +241,7 @@ impl<'a> Widget for GotoLineDialog<'a> {
         // Hint
         let hint = Paragraph::new("Press Enter to jump, Esc to cancel")
             .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+            .style(Style::default().fg(theme::FG_DIM));
         hint.render(chunks[4], buf);
     }
 }

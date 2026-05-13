@@ -333,7 +333,7 @@ fn list_themes() -> Result<()> {
          {}\n\n\
          To use a theme, add this to your config file:\n\
          [editor]\n\
-         theme = \"base16-ocean.dark\"\n\n\
+         theme = \"tarn\"\n\n\
          Config file location: {}\n\
          Run 'mq-edit --init-config' to create a default config file.",
         theme_list,

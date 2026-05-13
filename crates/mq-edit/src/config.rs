@@ -143,7 +143,7 @@ impl Default for EditorConfig {
 }
 
 fn default_theme() -> String {
-    "base16-ocean.dark".to_string()
+    "tarn".to_string()
 }
 
 /// Application configuration
