@@ -26,7 +26,7 @@ itertools = "0.14"
 lsp-types = "0.97"
 markdown-lsp = {version = "0.1.1", path = "../markdown-lsp"}
 miette = {version = "7.6", features = ["fancy"]}
-mq-lang = "0.5.26"
+mq-lang = "0.6.1"
 mq-markdown = "0.5.29"
 plist = "1.7"
 ratatui = "0.30"
