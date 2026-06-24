@@ -88,11 +88,11 @@ pub struct CodeRenderer {
 const MQ_SUBLIME_SYNTAX: &str = include_str!("../../mq.sublime-syntax");
 
 /// Embedded tarn theme (tmTheme plist format)
-const TARN_TMTHEME: &[u8] = include_bytes!("../../../../assets/tarn.tmTheme");
+const TARN_THEME: &[u8] = include_bytes!("../../assets/tarn.tmTheme");
 
 /// Load the embedded tarn theme
 fn load_tarn_theme() -> Theme {
-    plist::from_bytes(TARN_TMTHEME).unwrap_or_default()
+    plist::from_bytes(TARN_THEME).unwrap_or_default()
 }
 
 impl CodeRenderer {
